@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,300;1,6..72,400&amp;family=Hanken+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+  body { margin:0; }
+  @keyframes breathe { 0%,100%{ transform:scale(1) } 50%{ transform:scale(1.07) } }
+  @keyframes glowpulse { 0%,100%{ box-shadow:0 0 0 16px rgba(168,183,154,.16),0 0 0 34px rgba(168,183,154,.07),0 0 50px rgba(168,183,154,.3) } 50%{ box-shadow:0 0 0 22px rgba(168,183,154,.10),0 0 0 46px rgba(168,183,154,.04),0 0 70px rgba(168,183,154,.4) } }
+  @keyframes wav { 0%,100%{ transform:scaleY(.32) } 50%{ transform:scaleY(1) } }
+  @keyframes softin { from{ opacity:0; transform:translateY(8px) } to{ opacity:1; transform:translateY(0) } }
+  @keyframes spin { to{ transform:rotate(360deg) } }
+  @keyframes shimmer { 0%,100%{ opacity:.5 } 50%{ opacity:1 } }
+</style>
+</helmet>
+
+<div style="position:absolute;left:80px;top:24px;font:600 13px 'Hanken Grotesk',system-ui;letter-spacing:.06em;color:rgba(60,52,44,.55)">ECHO — CORE SCREENS · linen &amp; sage, dusk warmth · 390px</div>
+
+<!-- ========================= ROW 1 ========================= -->
+<div style="position:absolute;left:80px;top:78px;font:600 12px 'Hanken Grotesk',system-ui;letter-spacing:.1em;color:rgba(60,52,44,.5)">ONBOARDING</div>
+
+<!-- ONBOARDING 1 -->
+<div style="position:absolute;left:80px;top:108px;width:390px">
+  <div data-drags-parent="1" style="position:absolute;top:-22px;font:500 11px 'Hanken Grotesk',system-ui;letter-spacing:.04em;color:rgba(60,52,44,.6)">Onboarding · promise</div>
+  
+<div style="width:390px;height:844px;background:#F1EBE0;border-radius:42px;overflow:hidden;box-shadow:0 10px 44px rgba(60,50,35,.14);font-family:'Hanken Grotesk',system-ui;color:#43403B;position:relative">
+    <div style="position:absolute;top:60px;left:0;right:0;text-align:center;font:600 16px 'Hanken Grotesk';letter-spacing:.34em;color:#A8B79A">ECHO</div>
+    <div style="position:absolute;top:236px;left:50%;transform:translateX(-50%);width:118px;height:118px;border-radius:50%;background:radial-gradient(circle at 38% 32%,#C7D3BC,#A8B79A);animation:breathe 6s ease-in-out infinite;box-shadow:0 0 0 18px rgba(168,183,154,.12),0 0 0 38px rgba(168,183,154,.06)"></div>
+    <div style="position:absolute;top:410px;left:36px;right:36px;text-align:center;font:300 29px/1.4 'Newsreader';color:#43403B">You don’t have to remember every detail of your life to understand who you’re becoming.</div>
+    <div style="position:absolute;bottom:54px;left:32px;right:32px">
+      <div style="background:#43403B;color:#F1EBE0;text-align:center;border-radius:28px;padding:19px;font:500 17px 'Hanken Grotesk'">Begin</div>
+      <div style="text-align:center;margin-top:18px;font:400 14px 'Hanken Grotesk';color:#9C9488">Takes a minute a day</div>
+    </div>
+  </div></div>
+
+<!-- ONBOARDING 2 -->
+<div style="position:absolute;left:550px;top:108px;width:390px">
+  <div data-drags-parent="1" style="position:absolute;top:-22px;font:500 11px 'Hanken Grotesk',system-ui;letter-spacing:.04em;color:rgba(60,52,44,.6)">Onboarding · how it works</div>
+  <div style="width:390px;height:844px;background:#F4EFE6;border-radius:42px;overflow:hidden;box-shadow:0 10px 44px rgba(60,50,35,.14);font-family:'Hanken Grotesk',system-ui;color:#43403B;position:relative">
+    <div style="position:absolute;top:84px;left:36px;right:36px">
+      <div style="font:300 13px 'Hanken Grotesk';letter-spacing:.16em;color:#A8B79A;margin-bottom:42px">HOW ECHO WORKS</div>
+      <div style="display:flex;flex-direction:column;gap:38px">
+        <div style="display:flex;gap:18px;align-items:flex-start">
+          <div style="flex:0 0 44px;width:44px;height:44px;border-radius:50%;background:#E7DECF;display:flex;align-items:center;justify-content:center;font:400 19px 'Newsreader';color:#6E665C">1</div>
+          <div><div style="font:500 19px 'Hanken Grotesk';margin-bottom:5px">Speak for a minute</div><div style="font:300 16px/1.5 'Hanken Grotesk';color:#6E665C">However the day actually felt. No script, no right answer.</div></div>
+        </div>
+        <div style="display:flex;gap:18px;align-items:flex-start">
+          <div style="flex:0 0 44px;width:44px;height:44px;border-radius:50%;background:#E7DECF;display:flex;align-items:center;justify-content:center;font:400 19px 'Newsreader';color:#6E665C">2</div>
+          <div><div style="font:500 19px 'Hanken Grotesk';margin-bottom:5px">Echo listens, then reflects</div><div style="font:300 16px/1.5 'Hanken Grotesk';color:#6E665C">Your words come back gently — never judged, never diagnosed.</div></div>
+        </div>
+        <div style="display:flex;gap:18px;align-items:flex-start">
+          <div style="flex:0 0 44px;width:44px;height:44px;border-radius:50%;background:#E7DECF;display:flex;align-items:center;justify-content:center;font:400 19px 'Newsreader';color:#6E665C">3</div>
+          <div><div style="font:500 19px 'Hanken Grotesk';margin-bottom:5px">Keep the moment</div><div style="font:300 16px/1.5 'Hanken Grotesk';color:#6E665C">Each one becomes a small keepsake you can return to.</div></div>
+        </div>
+      </div>
+    </div>
+    <div style="position:absolute;bottom:54px;left:32px;right:32px">
+      <div style="background:#A8B79A;color:#fff;text-align:center;border-radius:28px;padding:19px;font:500 17px 'Hanken Grotesk'">I’m ready</div>
+      <div style="text-align:center;margin-top:18px;font:400 14px 'Hanken Grotesk';color:#9C9488">Private by default · only you can hear these</div>
+    </div>
+  </div>
+</div>
+
+<!-- HOME -->
+<div style="position:absolute;left:1020px;top:78px;font:600 12px 'Hanken Grotesk',system-ui;letter-spacing:.1em;color:rgba(60,52,44,.5)">TODAY</div>
+<div style="position:absolute;left:1020px;top:108px;width:390px">
+  <div data-drags-parent="1" style="position:absolute;top:-22px;font:500 11px 'Hanken Grotesk',system-ui;letter-spacing:.04em;color:rgba(60,52,44,.6)">Home · the daily moment</div>
+  <div style="width:390px;height:844px;background:#F4EFE6;border-radius:42px;overflow:hidden;box-shadow:0 10px 44px rgba(60,50,35,.14);font-family:'Hanken Grotesk',system-ui;color:#43403B;position:relative">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 30px 0;font:600 14px 'Hanken Grotesk'"><span>9:41</span><span style="display:flex;gap:5px;align-items:center"><span style="width:16px;height:9px;border:1.5px solid #43403B;border-radius:2px;display:inline-block"></span></span></div>
+    <div style="padding:30px 32px 0">
+      <div style="font:300 14px 'Hanken Grotesk';letter-spacing:.14em;color:#A8B79A;margin-bottom:6px">WEDNESDAY · JUN 25</div>
+      <div style="font:300 27px/1.3 'Newsreader';color:#43403B">Good evening, Maya.<br>What’s sitting with you today?</div>
+    </div>
+    <div style="display:flex;gap:9px;flex-wrap:wrap;padding:26px 32px 0">
+      <span style="font:400 14px 'Hanken Grotesk';color:#6E665C;background:#EAE2D4;border-radius:22px;padding:9px 15px">What drained you today?</span>
+      <span style="font:400 14px 'Hanken Grotesk';color:#6E665C;background:#EAE2D4;border-radius:22px;padding:9px 15px">A small good thing</span>
+      <span style="font:400 14px 'Hanken Grotesk';color:#6E665C;background:#EAE2D4;border-radius:22px;padding:9px 15px">Something you keep avoiding</span>
+    </div>
+    <div style="position:absolute;top:392px;left:0;right:0;display:flex;flex-direction:column;align-items:center">
+      <div style="width:132px;height:132px;border-radius:50%;background:radial-gradient(circle at 38% 32%,#C7D3BC,#A8B79A);animation:breathe 5s ease-in-out infinite,glowpulse 5s ease-in-out infinite;display:flex;align-items:center;justify-content:center">
+        <div style="width:26px;height:26px;border-radius:7px;background:rgba(255,255,255,.9)"></div>
+      </div>
+      <div style="margin-top:26px;font:400 16px 'Hanken Grotesk';color:#6E665C">Tap to speak — about a minute</div>
+    </div>
+    <div style="position:absolute;bottom:104px;left:24px;right:24px;background:#FBF8F2;border-radius:22px;padding:18px 20px;box-shadow:0 4px 18px rgba(60,50,35,.06)">
+      <div style="font:400 11px 'Hanken Grotesk';letter-spacing:.12em;color:#C9A38E;margin-bottom:8px">YESTERDAY YOU SAID</div>
+      <div style="font:300 18px/1.45 'Newsreader';font-style:italic;color:#6E665C">“I slowed down enough to actually hear my daughter today.”</div>
+    </div>
+    <div style="position:absolute;bottom:0;left:0;right:0;height:74px;background:#F1EBE0;border-top:1px solid rgba(60,50,35,.07);display:flex;justify-content:space-around;align-items:center;font:500 12px 'Hanken Grotesk';letter-spacing:.04em">
+      <span style="color:#43403B">Today</span><span style="color:#B3AB9F">Reflections</span><span style="color:#B3AB9F">You</span>
+    </div>
+  </div>
+</div>
+
+<!-- RECORDING -->
+<div style="position:absolute;left:1490px;top:78px;font:600 12px 'Hanken Grotesk',system-ui;letter-spacing:.1em;color:rgba(60,52,44,.5)">SPEAKING</div>
+<div style="position:absolute;left:1490px;top:108px;width:390px">
+  <div data-drags-parent="1" style="position:absolute;top:-22px;font:500 11px 'Hanken Grotesk',system-ui;letter-spacing:.04em;color:rgba(60,52,44,.6)">Recording · active</div>
+  <div style="width:390px;height:844px;background:radial-gradient(circle at 50% 42%,#F4EFE6,#E9E0D2);border-radius:42px;overflow:hidden;box-shadow:0 10px 44px rgba(60,50,35,.14);font-family:'Hanken Grotesk',system-ui;color:#43403B;position:relative">
+    <div style="position:absolute;top:64px;left:0;right:0;text-align:center;font:300 14px 'Hanken Grotesk';letter-spacing:.14em;color:#A8B79A">LISTENING</div>
+    <div style="position:absolute;top:118px;left:36px;right:36px;text-align:center;font:300 22px/1.4 'Newsreader';color:#6E665C">What drained you today?</div>
+    <div style="position:absolute;top:330px;left:50%;transform:translateX(-50%);width:150px;height:150px;border-radius:50%;background:radial-gradient(circle at 38% 32%,#C7D3BC,#A8B79A);animation:breathe 4s ease-in-out infinite;box-shadow:0 0 0 22px rgba(168,183,154,.14),0 0 0 48px rgba(168,183,154,.07),0 0 80px rgba(168,183,154,.35)"></div>
+    <div style="position:absolute;top:520px;left:0;right:0;display:flex;justify-content:center;align-items:flex-end;gap:5px;height:60px">{{ waveform }}</div>
+    <div style="position:absolute;top:606px;left:0;right:0;text-align:center;font:400 34px 'Newsreader';color:#43403B">0:23</div>
+    <div style="position:absolute;top:660px;left:97px;right:97px;height:4px;border-radius:3px;background:#E0D6C6"><div style="width:38%;height:100%;border-radius:3px;background:#A8B79A"></div></div>
+    <div style="position:absolute;top:676px;left:0;right:0;text-align:center;font:400 12px 'Hanken Grotesk';color:#B3AB9F">about 37 seconds left</div>
+    <div style="position:absolute;bottom:56px;left:0;right:0;display:flex;justify-content:center;gap:46px;align-items:center">
+      <div style="text-align:center"><div style="width:54px;height:54px;border-radius:50%;border:1.5px solid #C5BCAD;display:flex;align-items:center;justify-content:center;color:#9C9488;font:300 22px 'Hanken Grotesk'">×</div><div style="margin-top:10px;font:400 12px 'Hanken Grotesk';color:#9C9488">discard</div></div>
+      <div style="text-align:center"><div style="width:76px;height:76px;border-radius:50%;background:#43403B;display:flex;align-items:center;justify-content:center"><div style="width:24px;height:24px;border-radius:6px;background:#F1EBE0"></div></div><div style="margin-top:10px;font:500 12px 'Hanken Grotesk';color:#6E665C">finish</div></div>
+      <div style="width:54px;visibility:hidden"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================= ROW 2 ========================= -->
+<div style="position:absolute;left:80px;top:1058px;font:600 12px 'Hanken Grotesk',system-ui;letter-spacing:.1em;color:rgba(60,52,44,.5)">AFTER SPEAKING</div>
+
+<!-- TRANSCRIBING -->
+<div style="position:absolute;left:80px;top:1088px;width:390px">
+  <div data-drags-parent="1" style="position:absolute;top:-22px;font:500 11px 'Hanken Grotesk',system-ui;letter-spacing:.04em;color:rgba(60,52,44,.6)">Saved · transcribing</div>
+  <div style="width:390px;height:844px;background:#F4EFE6;border-radius:42px;overflow:hidden;box-shadow:0 10px 44px rgba(60,50,35,.14);font-family:'Hanken Grotesk',system-ui;color:#43403B;position:relative">
+    <div style="position:absolute;top:300px;left:50%;transform:translateX(-50%);width:84px;height:84px">
+      <div style="width:84px;height:84px;border-radius:50%;border:2px solid #E0D6C6;border-top-color:#A8B79A;animation:spin 1.8s linear infinite"></div>
+      <div style="position:absolute;inset:26px;border-radius:50%;background:radial-gradient(circle at 38% 32%,#C7D3BC,#A8B79A);animation:shimmer 3s ease-in-out infinite"></div>
+    </div>
+    <div style="position:absolute;top:430px;left:40px;right:40px;text-align:center;font:300 27px/1.35 'Newsreader';color:#43403B">Your reflection is saved.</div>
+    <div style="position:absolute;top:512px;left:46px;right:46px;text-align:center;font:300 17px/1.55 'Hanken Grotesk';color:#6E665C">Echo is listening back and gathering its thoughts. You can close this — we’ll keep going.</div>
+    <div style="position:absolute;bottom:64px;left:32px;right:32px;text-align:center;font:500 16px 'Hanken Grotesk';color:#A8B79A">Done for now</div>
+  </div>
+</div>
+
+<!-- AFTERGLOW -->
+<div style="position:absolute;left:550px;top:1088px;width:390px">
+  <div data-drags-parent="1" style="position:absolute;top:-22px;font:500 11px 'Hanken Grotesk',system-ui;letter-spacing:.04em;color:rgba(60,52,44,.6)">Afterglow · the payoff</div>
+  <div style="width:390px;height:1180px;background:#F4EFE6;border-radius:42px;overflow:hidden;box-shadow:0 10px 44px rgba(60,50,35,.14);font-family:'Hanken Grotesk',system-ui;color:#43403B;position:relative">
+    <div style="padding:54px 32px 0;text-align:center">
+      <div style="font:300 13px 'Hanken Grotesk';letter-spacing:.16em;color:#A8B79A">WEDNESDAY · JUN 25 · 0:54</div>
+    </div>
+    <!-- My Words -->
+    <div style="padding:34px 30px 0">
+      <div style="font:500 11px 'Hanken Grotesk';letter-spacing:.16em;color:#C9A38E;margin-bottom:12px">MY WORDS</div>
+      <div style="font:300 21px/1.55 'Newsreader';color:#43403B">“Work pulled at me all day — back to back, no room to breathe. By the time I got home I had almost nothing left for the people I actually care about. I noticed I do this a lot lately.”</div>
+    </div>
+    <div style="height:1px;background:rgba(60,50,35,.09);margin:30px 30px"></div>
+    <!-- Mirror Note -->
+    <div style="padding:0 30px">
+      <div style="font:500 11px 'Hanken Grotesk';letter-spacing:.16em;color:#A8B79A;margin-bottom:12px">MIRROR NOTE</div>
+      <div style="background:#FBF8F2;border-radius:20px;padding:22px 22px;box-shadow:0 4px 18px rgba(60,50,35,.05)">
+        <div style="font:300 18px/1.6 'Newsreader';font-style:italic;color:#6E665C">It seems the day asked for more than it gave back. You mentioned having “nothing left” for the people you care about — and that you’ve noticed this before.</div>
+      </div>
+    </div>
+    <!-- Memory Card preview -->
+    <div style="padding:30px 30px 0">
+      <div style="font:500 11px 'Hanken Grotesk';letter-spacing:.16em;color:#C9A38E;margin-bottom:12px">A MEMORY FROM TODAY</div>
+      <div style="border-radius:20px;background:linear-gradient(160deg,#4A3B36,#6B4F45);padding:26px 24px 22px;box-shadow:0 12px 30px rgba(74,59,54,.28)">
+        <div style="font:500 11px 'Hanken Grotesk';letter-spacing:.14em;color:#C99B91;margin-bottom:16px">JUN 25</div>
+        <div style="font:300 21px/1.45 'Newsreader';color:#F4E9E1;margin-bottom:20px">“By the time I got home I had almost nothing left.”</div>
+        <div style="display:flex;gap:8px"><span style="font:500 12px 'Hanken Grotesk';color:#EFE3DA;background:rgba(201,155,145,.26);border-radius:20px;padding:6px 13px">depleted</span><span style="font:500 12px 'Hanken Grotesk';color:#EFE3DA;background:rgba(201,155,145,.26);border-radius:20px;padding:6px 13px">boundaries</span></div>
+      </div>
+    </div>
+    <!-- actions -->
+    <div style="padding:30px 26px 36px">
+      <div style="background:#A8B79A;color:#fff;text-align:center;border-radius:26px;padding:17px;font:500 16px 'Hanken Grotesk';margin-bottom:12px">Keep this</div>
+      <div style="display:flex;gap:10px">
+        <span style="flex:1;text-align:center;font:500 14px 'Hanken Grotesk';color:#6E665C;background:#EAE2D4;border-radius:22px;padding:13px 0">Edit</span>
+        <span style="flex:1;text-align:center;font:500 14px 'Hanken Grotesk';color:#6E665C;background:#EAE2D4;border-radius:22px;padding:13px 0">Make shorter</span>
+        <span style="flex:1;text-align:center;font:500 14px 'Hanken Grotesk';color:#6E665C;background:#EAE2D4;border-radius:22px;padding:13px 0">Save privately</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MEMORY HERO -->
+<div style="position:absolute;left:1020px;top:1058px;font:600 12px 'Hanken Grotesk',system-ui;letter-spacing:.1em;color:rgba(60,52,44,.5)">MEMORY CARD — the signature artifact</div>
+<div style="position:absolute;left:1020px;top:1088px;width:390px">
+  <div data-drags-parent="1" style="position:absolute;top:-22px;font:500 11px 'Hanken Grotesk',system-ui;letter-spacing:.04em;color:rgba(60,52,44,.6)">Memory Card · dusk (hero)</div>
+  <div style="width:390px;height:560px;border-radius:34px;overflow:hidden;background:linear-gradient(155deg,#4A3B36 0%,#6B4F45 60%,#8A6353 100%);box-shadow:0 20px 50px rgba(74,59,54,.4);font-family:'Hanken Grotesk',system-ui;position:relative">
+    <div style="position:absolute;top:-60px;right:-50px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(217,169,142,.35),transparent 70%)"></div>
+    <div style="position:absolute;top:40px;left:38px;right:38px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font:600 13px 'Hanken Grotesk';letter-spacing:.3em;color:rgba(244,233,225,.6)">ECHO</span>
+      <span style="font:400 13px 'Hanken Grotesk';letter-spacing:.1em;color:rgba(244,233,225,.55)">25 JUN 2026</span>
+    </div>
+    <div style="position:absolute;top:170px;left:40px;right:40px;font:300 31px/1.4 'Newsreader';color:#F7EFE8">“By the time I got home I had almost nothing left.”</div>
+    <div style="position:absolute;bottom:40px;left:40px;right:40px">
+      <div style="height:1px;background:rgba(244,233,225,.18);margin-bottom:22px"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font:400 11px 'Hanken Grotesk';letter-spacing:.14em;color:rgba(201,155,145,.9);margin-bottom:4px">FELT</div><div style="font:500 16px 'Hanken Grotesk';color:#F4E9E1">depleted</div></div>
+        <div style="text-align:right"><div style="font:400 11px 'Hanken Grotesk';letter-spacing:.14em;color:rgba(201,155,145,.9);margin-bottom:4px">THEME</div><div style="font:500 16px 'Hanken Grotesk';color:#F4E9E1">boundaries</div></div>
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:18px;display:flex;gap:10px">
+    <span style="flex:1;text-align:center;font:500 14px 'Hanken Grotesk';color:#fff;background:#43403B;border-radius:22px;padding:13px 0">Save image</span>
+    <span style="flex:1;text-align:center;font:500 14px 'Hanken Grotesk';color:#6E665C;background:#EAE2D4;border-radius:22px;padding:13px 0">Share</span>
+  </div>
+</div>
+
+<!-- MEMORY VARIATION -->
+<div style="position:absolute;left:1490px;top:1088px;width:390px">
+  <div data-drags-parent="1" style="position:absolute;top:-22px;font:500 11px 'Hanken Grotesk',system-ui;letter-spacing:.04em;color:rgba(60,52,44,.6)">Memory Card · linen (variation)</div>
+  <div style="width:390px;height:560px;border-radius:34px;overflow:hidden;background:#FBF8F2;box-shadow:0 16px 44px rgba(60,50,35,.16);font-family:'Hanken Grotesk',system-ui;position:relative;border:1px solid rgba(60,50,35,.05)">
+    <div style="position:absolute;top:0;left:0;right:0;height:120px;background:linear-gradient(120deg,#C7D3BC,#A8B79A)"></div>
+    <div style="position:absolute;top:40px;left:38px;right:38px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font:600 13px 'Hanken Grotesk';letter-spacing:.3em;color:rgba(255,255,255,.85)">ECHO</span>
+      <span style="font:400 13px 'Hanken Grotesk';letter-spacing:.1em;color:rgba(255,255,255,.8)">25 JUN 2026</span>
+    </div>
+    <div style="position:absolute;top:180px;left:40px;right:40px;font:300 30px/1.42 'Newsreader';color:#43403B">“By the time I got home I had almost nothing left.”</div>
+    <div style="position:absolute;bottom:40px;left:40px;right:40px">
+      <div style="height:1px;background:rgba(60,50,35,.12);margin-bottom:22px"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font:400 11px 'Hanken Grotesk';letter-spacing:.14em;color:#A8B79A;margin-bottom:4px">FELT</div><div style="font:500 16px 'Hanken Grotesk';color:#43403B">depleted</div></div>
+        <div style="text-align:right"><div style="font:400 11px 'Hanken Grotesk';letter-spacing:.14em;color:#A8B79A;margin-bottom:4px">THEME</div><div style="font:500 16px 'Hanken Grotesk';color:#43403B">boundaries</div></div>
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:18px;font:300 15px/1.5 'Newsreader';font-style:italic;color:#9C9488;text-align:center">Two finishes — the dusk card for keeping close,<br>the linen card for sharing into daylight.</div>
+</div>
+
+<!-- ========================= ROW 3 ========================= -->
+<div style="position:absolute;left:80px;top:2358px;font:600 12px 'Hanken Grotesk',system-ui;letter-spacing:.1em;color:rgba(60,52,44,.5)">LOOKING BACK</div>
+
+<!-- HISTORY -->
+<div style="position:absolute;left:80px;top:2388px;width:390px">
+  <div data-drags-parent="1" style="position:absolute;top:-22px;font:500 11px 'Hanken Grotesk',system-ui;letter-spacing:.04em;color:rgba(60,52,44,.6)">Reflections · history</div>
+  <div style="width:390px;height:844px;background:#F4EFE6;border-radius:42px;overflow:hidden;box-shadow:0 10px 44px rgba(60,50,35,.14);font-family:'Hanken Grotesk',system-ui;color:#43403B;position:relative">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 30px 0;font:600 14px 'Hanken Grotesk'"><span>9:41</span><span style="width:16px;height:9px;border:1.5px solid #43403B;border-radius:2px;display:inline-block"></span></div>
+    <div style="padding:28px 32px 0"><div style="font:300 28px 'Newsreader';color:#43403B">Reflections</div><div style="font:400 14px 'Hanken Grotesk';color:#9C9488;margin-top:4px">23 kept · 5 this week</div></div>
+    <div style="padding:24px 22px 0;display:flex;flex-direction:column;gap:12px">
+      <div style="background:#FBF8F2;border-radius:20px;padding:18px 20px;box-shadow:0 3px 14px rgba(60,50,35,.05);display:flex;gap:16px;align-items:center">
+        <div style="flex:0 0 42px;width:42px;height:42px;border-radius:50%;background:#EDE5D7;display:flex;align-items:center;justify-content:center"><span style="width:0;height:0;border-top:7px solid transparent;border-bottom:7px solid transparent;border-left:11px solid #A8B79A;margin-left:3px"></span></div>
+        <div style="flex:1;min-width:0"><div style="font:400 11px 'Hanken Grotesk';letter-spacing:.1em;color:#C9A38E;margin-bottom:4px">JUN 25 · depleted</div><div style="font:300 17px/1.4 'Newsreader';color:#43403B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">“By the time I got home I had almost nothing left.”</div></div>
+      </div>
+      <div style="background:#FBF8F2;border-radius:20px;padding:18px 20px;box-shadow:0 3px 14px rgba(60,50,35,.05);display:flex;gap:16px;align-items:center">
+        <div style="flex:0 0 42px;width:42px;height:42px;border-radius:50%;background:#EDE5D7;display:flex;align-items:center;justify-content:center"><span style="width:0;height:0;border-top:7px solid transparent;border-bottom:7px solid transparent;border-left:11px solid #A8B79A;margin-left:3px"></span></div>
+        <div style="flex:1;min-width:0"><div style="font:400 11px 'Hanken Grotesk';letter-spacing:.1em;color:#C9A38E;margin-bottom:4px">JUN 24 · tender</div><div style="font:300 17px/1.4 'Newsreader';color:#43403B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">“I slowed down enough to actually hear my daughter.”</div></div>
+      </div>
+      <div style="background:#FBF8F2;border-radius:20px;padding:18px 20px;box-shadow:0 3px 14px rgba(60,50,35,.05);display:flex;gap:16px;align-items:center">
+        <div style="flex:0 0 42px;width:42px;height:42px;border-radius:50%;background:#EDE5D7;display:flex;align-items:center;justify-content:center"><span style="width:0;height:0;border-top:7px solid transparent;border-bottom:7px solid transparent;border-left:11px solid #A8B79A;margin-left:3px"></span></div>
+        <div style="flex:1;min-width:0"><div style="font:400 11px 'Hanken Grotesk';letter-spacing:.1em;color:#C9A38E;margin-bottom:4px">JUN 22 · restless</div><div style="font:300 17px/1.4 'Newsreader';color:#43403B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">“I keep putting off the thing I know I should do.”</div></div>
+      </div>
+      <div style="background:#FBF8F2;border-radius:20px;padding:18px 20px;box-shadow:0 3px 14px rgba(60,50,35,.05);display:flex;gap:16px;align-items:center">
+        <div style="flex:0 0 42px;width:42px;height:42px;border-radius:50%;background:#EDE5D7;display:flex;align-items:center;justify-content:center"><span style="width:0;height:0;border-top:7px solid transparent;border-bottom:7px solid transparent;border-left:11px solid #A8B79A;margin-left:3px"></span></div>
+        <div style="flex:1;min-width:0"><div style="font:400 11px 'Hanken Grotesk';letter-spacing:.1em;color:#C9A38E;margin-bottom:4px">JUN 20 · hopeful</div><div style="font:300 17px/1.4 'Newsreader';color:#43403B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">“Something small shifted and I felt lighter.”</div></div>
+      </div>
+    </div>
+    <div style="position:absolute;bottom:0;left:0;right:0;height:74px;background:#F1EBE0;border-top:1px solid rgba(60,50,35,.07);display:flex;justify-content:space-around;align-items:center;font:500 12px 'Hanken Grotesk';letter-spacing:.04em"><span style="color:#B3AB9F">Today</span><span style="color:#43403B">Reflections</span><span style="color:#B3AB9F">You</span></div>
+  </div>
+</div>
+
+<!-- WEEKLY RECAP -->
+<div style="position:absolute;left:550px;top:2358px;font:600 12px 'Hanken Grotesk',system-ui;letter-spacing:.1em;color:rgba(60,52,44,.5)">THE ONE CINEMATIC MOMENT</div>
+<div style="position:absolute;left:550px;top:2388px;width:390px">
+  <div data-drags-parent="1" style="position:absolute;top:-22px;font:500 11px 'Hanken Grotesk',system-ui;letter-spacing:.04em;color:rgba(60,52,44,.6)">Week Revealed · the exhale</div>
+  <div style="width:390px;height:980px;border-radius:42px;overflow:hidden;background:linear-gradient(180deg,#3A2F2B 0%,#4A3B36 45%,#5C4840 100%);box-shadow:0 16px 50px rgba(58,47,43,.4);font-family:'Hanken Grotesk',system-ui;color:#F4E9E1;position:relative">
+    <div style="position:absolute;top:-70px;left:50%;transform:translateX(-50%);width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(168,183,154,.28),transparent 68%)"></div>
+    <div style="padding:74px 40px 0;text-align:center;position:relative">
+      <div style="font:400 13px 'Hanken Grotesk';letter-spacing:.28em;color:rgba(201,155,145,.85)">WEEK REVEALED</div>
+      <div style="font:300 32px/1.3 'Newsreader';color:#F7EFE8;margin-top:18px">Jun 19 — 25</div>
+      <div style="font:300 18px/1.6 'Newsreader';font-style:italic;color:rgba(244,233,225,.7);margin-top:24px">A quiet week. You showed up five times.</div>
+    </div>
+    <div style="display:flex;justify-content:center;gap:30px;margin-top:44px;text-align:center">
+      <div><div style="font:300 42px 'Newsreader';color:#F7EFE8">5</div><div style="font:400 12px 'Hanken Grotesk';letter-spacing:.1em;color:rgba(244,233,225,.55);margin-top:4px">reflections</div></div>
+      <div style="width:1px;background:rgba(244,233,225,.18)"></div>
+      <div><div style="font:300 42px 'Newsreader';color:#F7EFE8">4:12</div><div style="font:400 12px 'Hanken Grotesk';letter-spacing:.1em;color:rgba(244,233,225,.55);margin-top:4px">spoken</div></div>
+      <div style="width:1px;background:rgba(244,233,225,.18)"></div>
+      <div><div style="font:300 42px 'Newsreader';color:#F7EFE8">2</div><div style="font:400 12px 'Hanken Grotesk';letter-spacing:.1em;color:rgba(244,233,225,.55);margin-top:4px">themes</div></div>
+    </div>
+    <div style="margin-top:46px;padding:0 36px">
+      <div style="font:400 11px 'Hanken Grotesk';letter-spacing:.16em;color:rgba(201,155,145,.85);margin-bottom:18px;text-align:center">WORDS THAT STAYED WITH YOU</div>
+      <div style="font:300 22px/1.5 'Newsreader';color:#F7EFE8;margin-bottom:22px">“I slowed down enough to actually hear my daughter.”</div>
+      <div style="font:300 22px/1.5 'Newsreader';color:rgba(244,233,225,.78)">“By the time I got home I had almost nothing left.”</div>
+    </div>
+    <div style="position:absolute;bottom:120px;left:36px;right:36px;text-align:center;font:300 17px/1.6 'Hanken Grotesk';color:rgba(244,233,225,.62)">Based on a few reflections this week, <span style="color:#A8B79A">rest</span> kept asking for your attention.</div>
+    <div style="position:absolute;bottom:48px;left:36px;right:36px;text-align:center;background:rgba(244,233,225,.12);border-radius:26px;padding:16px;font:500 16px 'Hanken Grotesk';color:#F7EFE8">Keep this week</div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div style="position:absolute;left:1020px;top:2358px;font:600 12px 'Hanken Grotesk',system-ui;letter-spacing:.1em;color:rgba(60,52,44,.5)">TRUST</div>
+<div style="position:absolute;left:1020px;top:2388px;width:390px">
+  <div data-drags-parent="1" style="position:absolute;top:-22px;font:500 11px 'Hanken Grotesk',system-ui;letter-spacing:.04em;color:rgba(60,52,44,.6)">Settings · privacy as a feature</div>
+  <div style="width:390px;height:844px;background:#F4EFE6;border-radius:42px;overflow:hidden;box-shadow:0 10px 44px rgba(60,50,35,.14);font-family:'Hanken Grotesk',system-ui;color:#43403B;position:relative">
+    <div style="padding:54px 32px 0"><div style="font:300 28px 'Newsreader';color:#43403B">Your reflections,<br>only yours.</div></div>
+    <div style="padding:28px 24px 0">
+      <div style="background:#FBF8F2;border-radius:22px;padding:6px 4px;box-shadow:0 3px 14px rgba(60,50,35,.05)">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 20px"><div><div style="font:500 16px 'Hanken Grotesk'">Keep original audio</div><div style="font:300 13px/1.4 'Hanken Grotesk';color:#9C9488;margin-top:2px">So you can replay your own voice</div></div><div style="width:46px;height:27px;border-radius:16px;background:#A8B79A;position:relative"><div style="position:absolute;top:3px;right:3px;width:21px;height:21px;border-radius:50%;background:#fff"></div></div></div>
+        <div style="height:1px;background:rgba(60,50,35,.07);margin:0 20px"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 20px"><div><div style="font:500 16px 'Hanken Grotesk'">Audio retention</div><div style="font:300 13px/1.4 'Hanken Grotesk';color:#9C9488;margin-top:2px">Auto-delete recordings after</div></div><div style="font:500 15px 'Hanken Grotesk';color:#A8B79A">30 days ›</div></div>
+      </div>
+      <div style="font:300 13px/1.5 'Hanken Grotesk';color:#9C9488;padding:14px 22px 0">Echo never trains on your reflections and never shares them. Everything lives on your device unless you choose to sync.</div>
+    </div>
+    <div style="padding:26px 24px 0">
+      <div style="background:#FBF8F2;border-radius:22px;box-shadow:0 3px 14px rgba(60,50,35,.05);overflow:hidden">
+        <div style="padding:18px 20px;font:500 16px 'Hanken Grotesk';color:#43403B">Export my data</div>
+        <div style="height:1px;background:rgba(60,50,35,.07);margin:0 20px"></div>
+        <div style="padding:18px 20px;font:500 16px 'Hanken Grotesk';color:#B9836F">Delete a reflection</div>
+        <div style="height:1px;background:rgba(60,50,35,.07);margin:0 20px"></div>
+        <div style="padding:18px 20px;font:500 16px 'Hanken Grotesk';color:#B9836F">Delete everything</div>
+      </div>
+      <div style="font:300 13px/1.5 'Hanken Grotesk';color:#9C9488;padding:14px 22px 0">Deleting is immediate and permanent — no archive, no recovery. That’s the point.</div>
+    </div>
+  </div>
+</div>
+
+<div style="position:absolute;left:1490px;top:2388px;width:260px;background:#fef4a8;padding:18px;border-radius:2px;font:14px/1.55 'Hanken Grotesk',system-ui;color:#5a4e2a;box-shadow:0 1px 3px rgba(0,0,0,.12);transform:rotate(-1deg)">All 9 screens in the linen-&amp;-sage base with dusk warmth. The dark treatment is reserved for the Memory Card and the Weekly Recap — the two “keepsake / exhale” moments. Tell me which screens to push further or wire into a tappable flow.</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const heights = [22,40,30,52,34,58,30,44,26,50,38,30,46,34,24,42,30,52,36,28];
+    const bars = heights.map((h, i) =>
+      React.createElement('div', {
+        key: i,
+        style: {
+          width: '4px', height: h + 'px', borderRadius: '3px',
+          background: i % 3 === 0 ? '#A8B79A' : '#C5BCAD',
+          transformOrigin: 'bottom',
+          animation: `wav ${1.1 + (i % 5) * 0.18}s ease-in-out ${(i % 7) * 0.12}s infinite`
+        }
+      })
+    );
+    return { waveform: bars };
+  }
+}
+</script>
+</body>
+</html>
