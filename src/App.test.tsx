@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import type { AuthGateway } from "./modules/auth/auth";
 import type { Recorder } from "./modules/recording/types";
+import type { ReflectionProvider } from "./modules/reflection/reflection";
 import type { TranscriptionProvider } from "./modules/transcription/transcription";
 
 function signedInGateway(): AuthGateway {
@@ -28,6 +29,19 @@ function fakeTranscriptionProvider(overrides: Partial<TranscriptionProvider> = {
   } satisfies TranscriptionProvider;
 }
 
+function fakeReflectionProvider(overrides: Partial<ReflectionProvider> = {}) {
+  return {
+    reflect: vi.fn(async () => ({
+      mirrorNote:
+        "It seems like the walk gave you a little more room. One thing that stands out is that you noticed the shift.",
+      moodTags: ["clearer", "settled"],
+      memoryQuote: "I felt clearer after walking.",
+      provider: "gemini",
+      model: "gemini-2.5-flash",
+    })),
+    ...overrides,
+  } satisfies ReflectionProvider;
+}
 function fakeRecorder(overrides: Partial<Recorder> = {}) {
   return {
     start: vi.fn(async () => undefined),
@@ -105,6 +119,40 @@ describe("Echo app shell", () => {
     expect(await screen.findByText(/Echo is securing this reflection/i)).toBeInTheDocument();
     expect(await screen.findByText(/Your reflection is safe to close/i)).toBeInTheDocument();
     expect(transcriptionProvider.transcribe).toHaveBeenCalledOnce();
+  });
+
+  it("renders the Afterglow result screen with MVP-only actions", async () => {
+    const recorder = fakeRecorder();
+    const transcriptionProvider = fakeTranscriptionProvider();
+    const reflectionProvider = fakeReflectionProvider();
+    render(
+      <App
+        authGateway={signedInGateway()}
+        recorderFactory={async () => recorder}
+        transcriptionProvider={transcriptionProvider}
+        reflectionProvider={reflectionProvider}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByLabelText(/start recording/i)).toBeInTheDocument());
+    fireEvent.click(screen.getByLabelText(/start recording/i));
+    fireEvent.click(await screen.findByLabelText(/finish recording/i));
+
+    expect(await screen.findByText("MY WORDS")).toBeInTheDocument();
+    expect(screen.getAllByText(/I felt clearer after walking\./i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("MIRROR NOTE")).toBeInTheDocument();
+    expect(screen.getByText(/It seems like the walk gave you a little more room/i)).toBeInTheDocument();
+    expect(screen.getByText("A MEMORY FROM TODAY")).toBeInTheDocument();
+    expect(screen.getByText("clearer")).toBeInTheDocument();
+    expect(screen.getByText("settled")).toBeInTheDocument();
+    expect(screen.getAllByText(/I felt clearer after walking\./i).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByRole("button", { name: /keep this/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /delete/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /edit/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /make shorter/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /save privately/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /save image/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /share/i })).not.toBeInTheDocument();
   });
   it("exposes a Linen & Sage design-system preview route", async () => {
     render(<App authGateway={signedInGateway()} />);

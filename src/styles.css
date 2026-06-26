@@ -466,14 +466,35 @@ h1 {
 
 .result-screen {
   min-height: 1180px;
+  padding: 54px 0 36px;
 }
 
-.result-screen section {
+.afterglow-header {
+  padding: 0 32px;
+}
+
+.afterglow-section {
+  padding: 0 30px;
+}
+
+.my-words-section {
+  margin-top: 34px;
+}
+
+.mirror-note-section,
+.memory-section {
   margin-top: 30px;
+}
+
+.afterglow-divider {
+  height: 1px;
+  background: rgba(60, 50, 35, 0.09);
+  margin: 30px;
 }
 
 .section-label {
   color: var(--sage);
+  margin: 0 0 12px;
 }
 
 .clay {
@@ -489,6 +510,7 @@ h1 {
   font-size: 21px;
   line-height: 1.55;
   font-weight: 300;
+  margin: 0;
 }
 
 .mirror-card {
@@ -513,13 +535,17 @@ h1 {
 }
 
 .memory-card q {
+  display: block;
   font-family: "Newsreader", serif;
   font-size: 21px;
   line-height: 1.45;
+  color: #f4e9e1;
+  margin-bottom: 20px;
 }
 
 .memory-date {
   color: #c99b91;
+  margin: 0 0 16px;
 }
 
 .tag-row {
@@ -540,7 +566,7 @@ h1 {
 .result-actions {
   display: grid;
   gap: 12px;
-  margin-top: 30px;
+  padding: 30px 26px 0;
 }
 
 .history-head h1 {

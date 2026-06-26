@@ -20,6 +20,16 @@ function todayIsoDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
+
+function afterglowMeta(entry: ReflectionEntry) {
+  const date = new Intl.DateTimeFormat("en", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  }).format(new Date(entry.recordedAt));
+  const seconds = Math.round((entry.durationMs ?? 0) / 1000);
+  return `${date} - 0:${String(seconds).padStart(2, "0")}`.toUpperCase();
+}
 function displayDate(value: string) {
   return new Intl.DateTimeFormat("en", {
     month: "short",
@@ -495,22 +505,28 @@ function ProcessingScreen({ message }: { message: string }) {
 }
 
 function ResultScreen({ entry, onDone, onDelete }: { entry: ReflectionEntry; onDone: () => void; onDelete: () => void }) {
+  const transcript = entry.transcript ?? "";
+  const memoryQuote = entry.memoryQuote ?? transcript;
+
   return (
     <main className="screen result-screen">
-      <p className="eyebrow centered">{displayDate(entry.recordedAt).toUpperCase()} - {Math.round((entry.durationMs ?? 0) / 1000)}S</p>
-      <section>
+      <header className="afterglow-header">
+        <p className="eyebrow centered">{afterglowMeta(entry)}</p>
+      </header>
+      <section className="afterglow-section my-words-section">
         <SectionLabel tone="clay">MY WORDS</SectionLabel>
-        <ReflectionText className="transcript">"{entry.transcript}"</ReflectionText>
+        <ReflectionText className="transcript">"{transcript}"</ReflectionText>
       </section>
-      <section>
+      <div className="afterglow-divider" />
+      <section className="afterglow-section mirror-note-section">
         <SectionLabel>MIRROR NOTE</SectionLabel>
         <SoftCard className="mirror-card">{entry.mirrorNote}</SoftCard>
       </section>
-      <section>
+      <section className="afterglow-section memory-section">
         <SectionLabel tone="clay">A MEMORY FROM TODAY</SectionLabel>
         <div className="memory-card">
           <p className="memory-date">{displayDate(entry.recordedAt).toUpperCase()}</p>
-          <q>{entry.memoryQuote}</q>
+          <q>{memoryQuote}</q>
           <div className="tag-row">
             {entry.moodTags.map((tag) => (
               <Tag key={tag}>{tag}</Tag>
@@ -519,7 +535,7 @@ function ResultScreen({ entry, onDone, onDelete }: { entry: ReflectionEntry; onD
         </div>
       </section>
       <div className="result-actions">
-        <EchoButton tone="sage" onClick={onDone}>Done</EchoButton>
+        <EchoButton tone="sage" onClick={onDone}>Keep this</EchoButton>
         <EchoButton tone="muted" onClick={onDelete}>Delete</EchoButton>
       </div>
     </main>
