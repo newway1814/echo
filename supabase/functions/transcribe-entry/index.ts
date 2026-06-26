@@ -1,8 +1,6 @@
 // Supabase Edge Function: transcribe-entry
 // Gemini is used for development only. Keep GEMINI_API_KEY server-side.
 
-type GeminiPart = { text?: string; inlineData?: { mimeType: string; data: string } };
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -34,29 +32,32 @@ Deno.serve(async (request) => {
     }
 
     const bytes = new Uint8Array(await audio.arrayBuffer());
-    const parts: GeminiPart[] = [
-      {
-        text:
-          "Transcribe this short spoken self-reflection. Return only the transcript text. Do not summarize, diagnose, or add commentary.",
-      },
-      { inlineData: { mimeType, data: toBase64(bytes) } },
-    ];
-
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents: [{ role: "user", parts }] }),
-      },
-    );
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+      body: JSON.stringify({
+        model,
+        input: [
+          {
+            type: "text",
+            text:
+              "Transcribe this short spoken self-reflection. Return only the transcript text. Do not summarize, diagnose, or add commentary.",
+          },
+          {
+            type: "audio",
+            data: toBase64(bytes),
+            mime_type: normalizeAudioMimeType(mimeType),
+          },
+        ],
+      }),
+    });
 
     if (!response.ok) {
       return json({ error: "gemini_transcription_failed", status: response.status, provider: "gemini", model }, 502);
     }
 
     const payload = await response.json();
-    const text = payload.candidates?.[0]?.content?.parts?.map((part: { text?: string }) => part.text ?? "").join(" ").trim();
+    const text = String(payload.output_text ?? "").trim();
 
     if (!text) {
       return json({ error: "empty_transcript", provider: "gemini", model }, 502);
@@ -73,6 +74,16 @@ function json(body: unknown, status = 200) {
     status,
     headers: { "Content-Type": "application/json", ...corsHeaders },
   });
+}
+
+function normalizeAudioMimeType(mimeType: string) {
+  if (mimeType.includes("mp4")) return "audio/mp4";
+  if (mimeType.includes("mpeg")) return "audio/mpeg";
+  if (mimeType.includes("mp3")) return "audio/mp3";
+  if (mimeType.includes("ogg")) return "audio/ogg";
+  if (mimeType.includes("wav")) return "audio/wav";
+  if (mimeType.includes("webm")) return "audio/webm";
+  return mimeType || "application/octet-stream";
 }
 
 function toBase64(bytes: Uint8Array) {
