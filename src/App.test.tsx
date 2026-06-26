@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import type { AuthGateway } from "./modules/auth/auth";
+import type { EntryHistoryGateway } from "./modules/entries/history";
 import type { Recorder } from "./modules/recording/types";
 import type { ReflectionProvider } from "./modules/reflection/reflection";
 import type { TranscriptionProvider } from "./modules/transcription/transcription";
@@ -18,6 +19,40 @@ function signedInGateway(): AuthGateway {
   };
 }
 
+function historyEntry(overrides: Partial<Awaited<ReturnType<EntryHistoryGateway["listEntries"]>>[number]> = {}) {
+  return {
+    id: "history-1",
+    userId: "user-1",
+    promptText: "A small good thing",
+    recordedAt: "2026-06-24T20:30:00.000Z",
+    recordedDate: "2026-06-24",
+    timezone: "Asia/Singapore",
+    status: "ready" as const,
+    transcript: "I slowed down enough to actually hear my daughter today.",
+    mirrorNote: "You mentioned slowing down enough to hear your daughter. One thing that stands out is the care in that moment.",
+    moodTags: ["tender"],
+    memoryQuote: "I slowed down enough to actually hear my daughter today.",
+    durationMs: 42000,
+    audioRetentionPolicy: "none" as const,
+    audioStoragePath: null,
+    audioMimeType: null,
+    audioSizeBytes: null,
+    audioDeletedAt: "2026-06-24T20:31:00.000Z",
+    transcriptionProvider: "gemini",
+    transcriptionModel: "gemini-2.5-flash",
+    reflectionProvider: "gemini",
+    reflectionModel: "gemini-2.5-flash",
+    deletedAt: null,
+    ...overrides,
+  };
+}
+
+function fakeHistoryGateway(entries = [historyEntry()]) {
+  return {
+    listEntries: vi.fn(async () => entries),
+    deleteEntry: vi.fn(async () => undefined),
+  } satisfies EntryHistoryGateway;
+}
 function fakeTranscriptionProvider(overrides: Partial<TranscriptionProvider> = {}) {
   return {
     transcribe: vi.fn(async () => ({
@@ -136,6 +171,37 @@ describe("Echo app shell", () => {
     expect(transcriptionProvider.transcribe).toHaveBeenCalledOnce();
   });
 
+
+  it("loads signed-in reflection history and opens a past Afterglow detail", async () => {
+    const entryHistoryGateway = fakeHistoryGateway();
+    render(<App authGateway={signedInGateway()} entryHistoryGateway={entryHistoryGateway} />);
+
+    await waitFor(() => expect(entryHistoryGateway.listEntries).toHaveBeenCalledWith("user-1"));
+    fireEvent.click(await screen.findByRole("button", { name: /reflections/i }));
+
+    expect(await screen.findByText(/1 kept/i)).toBeInTheDocument();
+    expect(screen.getByText(/JUN 24 - tender/i)).toBeInTheDocument();
+    expect(screen.getByText(/I slowed down enough to actually hear my daughter today/i)).toBeInTheDocument();
+    expect(screen.queryByRole("audio")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /open reflection from jun 24/i }));
+
+    expect(await screen.findByText("MY WORDS")).toBeInTheDocument();
+    expect(screen.getByText(/You mentioned slowing down enough/i)).toBeInTheDocument();
+  });
+
+  it("soft-deletes a history reflection and removes it from normal history", async () => {
+    const entryHistoryGateway = fakeHistoryGateway();
+    render(<App authGateway={signedInGateway()} entryHistoryGateway={entryHistoryGateway} />);
+
+    await waitFor(() => expect(entryHistoryGateway.listEntries).toHaveBeenCalledWith("user-1"));
+    fireEvent.click(await screen.findByRole("button", { name: /reflections/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /delete reflection from jun 24/i }));
+
+    await waitFor(() => expect(entryHistoryGateway.deleteEntry).toHaveBeenCalledWith("user-1", "history-1"));
+    expect(screen.queryByText(/I slowed down enough to actually hear my daughter today/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/0 kept/i)).toBeInTheDocument();
+  });
   it("renders the Afterglow result screen with MVP-only actions", async () => {
     const recorder = fakeRecorder();
     const transcriptionProvider = fakeTranscriptionProvider();

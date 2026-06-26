@@ -14,6 +14,13 @@ describe("Supabase foundation migration", () => {
     expect(normalizedSql).toContain("with check ((select auth.uid()) = user_id)");
   });
 
+
+  it("prevents normal history access to another user's reflections through entry ownership RLS", () => {
+    expect(normalizedSql).toContain('create policy "entries are owned by user" on public.entries');
+    expect(normalizedSql).toContain("using ((select auth.uid()) = user_id)");
+    expect(normalizedSql).toContain("with check ((select auth.uid()) = user_id)");
+    expect(normalizedSql).toContain("create index entries_user_recorded_at_idx on public.entries (user_id, recorded_at desc) where deleted_at is null");
+  });
   it("preserves the MVP no-retained-audio default while leaving future audio fields", () => {
     expect(normalizedSql).toContain("audio_retention_policy public.audio_retention_policy not null default 'none'");
     expect(normalizedSql).toContain("audio_storage_path text");

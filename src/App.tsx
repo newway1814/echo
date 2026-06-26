@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Mic, Sparkles } from "lucide-react";
 import type { ReflectionEntry } from "./modules/entries/types";
+import { createSupabaseEntryHistoryGateway, type EntryHistoryGateway, type SupabaseEntryHistoryClient } from "./modules/entries/history";
 import { runEntryWorkflow } from "./modules/entryWorkflow/entryWorkflow";
 import { createSupabaseEntryWorkflowPorts, type SupabaseEntryWorkflowClient } from "./modules/entryWorkflow/supabaseEntryWorkflow";
 import type { EntryWorkflowInput, EntryWorkflowPorts } from "./modules/entryWorkflow/types";
@@ -44,9 +45,10 @@ type AppProps = {
   recorderFactory?: RecorderFactory;
   transcriptionProvider?: TranscriptionProvider;
   reflectionProvider?: ReflectionProvider;
+  entryHistoryGateway?: EntryHistoryGateway;
 };
 
-export default function App({ authGateway: providedAuthGateway, recorderFactory = createDefaultBrowserRecorder, transcriptionProvider: providedTranscriptionProvider, reflectionProvider: providedReflectionProvider }: AppProps = {}) {
+export default function App({ authGateway: providedAuthGateway, recorderFactory = createDefaultBrowserRecorder, transcriptionProvider: providedTranscriptionProvider, reflectionProvider: providedReflectionProvider, entryHistoryGateway: providedEntryHistoryGateway }: AppProps = {}) {
   const [route, setRoute] = useState<Route>("onboarding");
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -66,6 +68,10 @@ export default function App({ authGateway: providedAuthGateway, recorderFactory 
     () => (providedAuthGateway ? null : createConfiguredSupabaseClient()),
     [providedAuthGateway],
   );
+  const entryHistoryGateway = useMemo(
+    () => providedEntryHistoryGateway ?? (supabaseWorkflowClient ? createSupabaseEntryHistoryGateway(supabaseWorkflowClient as unknown as SupabaseEntryHistoryClient) : null),
+    [providedEntryHistoryGateway, supabaseWorkflowClient],
+  );
   const authGateway = useMemo(() => providedAuthGateway ?? createConfiguredAuthGateway(), [providedAuthGateway]);
 
   useEffect(() => {
@@ -77,6 +83,19 @@ export default function App({ authGateway: providedAuthGateway, recorderFactory 
         setUserId(session.userId);
         setIsSignedIn(true);
         if (mounted) setRoute("today");
+        if (entryHistoryGateway) {
+          try {
+            const history = await entryHistoryGateway.listEntries(session.userId);
+            if (mounted) {
+              setEntries(history);
+              setActiveEntry(history[0] ?? null);
+            }
+          } catch (historyError) {
+            if (mounted) {
+              setAuthMessage(historyError instanceof Error ? historyError.message : "Could not load your reflections.");
+            }
+          }
+        }
         try {
           await authGateway.captureTimezone(session.userId, Intl.DateTimeFormat().resolvedOptions().timeZone);
         } catch (timezoneError) {
@@ -92,7 +111,7 @@ export default function App({ authGateway: providedAuthGateway, recorderFactory 
     return () => {
       mounted = false;
     };
-  }, [authGateway]);
+  }, [authGateway, entryHistoryGateway]);
 
   async function completeReflection(recording: RecordedAudio) {
     const recordedAt = new Date().toISOString();
@@ -164,7 +183,10 @@ export default function App({ authGateway: providedAuthGateway, recorderFactory 
     setRoute("result");
   }
 
-  function deleteEntry(id: string) {
+  async function deleteEntry(id: string) {
+    if (entryHistoryGateway && userId) {
+      await entryHistoryGateway.deleteEntry(userId, id);
+    }
     setEntries((current) => current.filter((entry) => entry.id !== id));
     if (activeEntry?.id === id) {
       setActiveEntry(null);
@@ -213,7 +235,7 @@ export default function App({ authGateway: providedAuthGateway, recorderFactory 
         )}
         {route === "processing" && <ProcessingScreen message={processingMessage} />}
         {route === "result" && activeEntry && (
-          <ResultScreen entry={activeEntry} onDone={() => setRoute("today")} onDelete={() => deleteEntry(activeEntry.id)} />
+          <ResultScreen entry={activeEntry} onDone={() => setRoute("today")} onDelete={() => void deleteEntry(activeEntry.id)} />
         )}
         {route === "history" && (
           <HistoryScreen
@@ -223,6 +245,7 @@ export default function App({ authGateway: providedAuthGateway, recorderFactory 
               setRoute("result");
             }}
             onToday={() => setRoute("today")}
+            onDelete={(entry) => void deleteEntry(entry.id)}
           />
         )}
         {route === "audio-lab" && <AudioLabScreen recorderFactory={recorderFactory} transcriptionProvider={audioLabTranscriptionProvider} promptText={selectedPrompt} onBack={() => setRoute("today")} />}
@@ -548,7 +571,17 @@ function ResultScreen({ entry, onDone, onDelete }: { entry: ReflectionEntry; onD
   );
 }
 
-function HistoryScreen({ entries, onOpen, onToday }: { entries: ReflectionEntry[]; onOpen: (entry: ReflectionEntry) => void; onToday: () => void }) {
+function HistoryScreen({
+  entries,
+  onOpen,
+  onToday,
+  onDelete,
+}: {
+  entries: ReflectionEntry[];
+  onOpen: (entry: ReflectionEntry) => void;
+  onToday: () => void;
+  onDelete: (entry: ReflectionEntry) => void;
+}) {
   return (
     <main className="screen history-screen">
       <StatusBar />
@@ -557,19 +590,28 @@ function HistoryScreen({ entries, onOpen, onToday }: { entries: ReflectionEntry[
         <p>{entries.length} kept</p>
       </section>
       <section className="entry-list">
-        {entries.map((entry) => (
-          <button key={entry.id} className="entry-row" onClick={() => onOpen(entry)}>
-            <span className="entry-icon">
-              <Sparkles size={18} />
-            </span>
-            <span>
-              <span className="entry-meta">
-                {displayDate(entry.recordedAt).toUpperCase()} - {entry.moodTags[0] ?? "reflection"}
-              </span>
-              <q>{entry.memoryQuote ?? entry.transcript}</q>
-            </span>
-          </button>
-        ))}
+        {entries.map((entry) => {
+          const entryDate = displayDate(entry.recordedDate).toUpperCase();
+          const tag = entry.moodTags[0] ?? "reflection";
+          return (
+            <article key={entry.id} className="entry-row">
+              <button className="entry-open" onClick={() => onOpen(entry)} aria-label={`Open reflection from ${entryDate}`}>
+                <span className="entry-icon">
+                  <Sparkles size={18} />
+                </span>
+                <span>
+                  <span className="entry-meta">
+                    {entryDate} - {tag}
+                  </span>
+                  <q>{entry.memoryQuote ?? entry.transcript}</q>
+                </span>
+              </button>
+              <button className="entry-delete" onClick={() => onDelete(entry)} aria-label={`Delete reflection from ${entryDate}`}>
+                Delete
+              </button>
+            </article>
+          );
+        })}
       </section>
       <BottomNav active="history" onToday={onToday} onHistory={() => undefined} />
     </main>
