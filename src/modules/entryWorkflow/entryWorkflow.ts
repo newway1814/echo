@@ -48,8 +48,14 @@ export async function runEntryWorkflow(
       promptText: input.promptText,
     });
     await ports.saveEntryResult(entry.id, {
-      ...transcription,
-      ...reflection,
+      transcript: transcription.text,
+      transcriptionProvider: transcription.provider,
+      transcriptionModel: transcription.model,
+      mirrorNote: reflection.mirrorNote,
+      moodTags: reflection.moodTags,
+      memoryQuote: reflection.memoryQuote,
+      reflectionProvider: reflection.provider,
+      reflectionModel: reflection.model,
       audioDeletedAt: deletion.deletedAt,
     });
     await transition(entry.id, "ready", ports);

@@ -103,7 +103,11 @@ describe("entry workflow", () => {
     expect(events).toContain("event:temporary_audio_deleted");
     expect(savedResults).toEqual([
       expect.objectContaining({
-        text: "I felt stretched thin today.",
+        transcript: "I felt stretched thin today.",
+        transcriptionProvider: "gemini",
+        transcriptionModel: "gemini-2.5-flash",
+        reflectionProvider: "gemini",
+        reflectionModel: "gemini-2.5-flash",
         audioDeletedAt: "2026-06-26T01:02:00.000Z",
       }),
     ]);

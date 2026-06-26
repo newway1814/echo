@@ -147,15 +147,15 @@ export function createSupabaseEntryWorkflowPorts({
     async saveEntryResult(entryId, result) {
       await updateEntry(client, entryId, {
         status: "ready",
-        transcript: result.text,
+        transcript: result.transcript,
         mirror_note: result.mirrorNote,
         mood_tags: result.moodTags,
         memory_quote: result.memoryQuote,
         audio_deleted_at: result.audioDeletedAt,
-        transcription_provider: result.provider,
-        transcription_model: result.model,
-        reflection_provider: result.provider,
-        reflection_model: result.model,
+        transcription_provider: result.transcriptionProvider,
+        transcription_model: result.transcriptionModel,
+        reflection_provider: result.reflectionProvider,
+        reflection_model: result.reflectionModel,
         updated_at: now().toISOString(),
       });
     },

@@ -8,7 +8,7 @@ import { createConfiguredAuthGateway, createConfiguredSupabaseClient } from "./m
 import { getAuthRedirectUrl, type AuthGateway } from "./modules/auth/auth";
 import { createDefaultBrowserRecorder, chooseRecordingMimeType, preferredAudioMimeTypes } from "./modules/recording/recording";
 import type { RecordedAudio, Recorder } from "./modules/recording/types";
-import { DemoReflectionProvider, type ReflectionProvider } from "./modules/reflection/reflection";
+import { createConfiguredReflectionProvider, type ReflectionProvider } from "./modules/reflection/reflection";
 import { createConfiguredTranscriptionProvider, describeTranscriptionFailure, type TranscriptionProvider, type TranscriptionResult } from "./modules/transcription/transcription";
 import { getDailyPromptSet } from "./modules/prompts/prompts";
 import { BottomNav, BreathingOrb, EchoButton, PromptChip, ReflectionText, SectionLabel, SoftCard, Tag } from "./modules/designSystem/designSystem";
@@ -33,9 +33,10 @@ type AppProps = {
   authGateway?: AuthGateway;
   recorderFactory?: RecorderFactory;
   transcriptionProvider?: TranscriptionProvider;
+  reflectionProvider?: ReflectionProvider;
 };
 
-export default function App({ authGateway: providedAuthGateway, recorderFactory = createDefaultBrowserRecorder, transcriptionProvider: providedTranscriptionProvider }: AppProps = {}) {
+export default function App({ authGateway: providedAuthGateway, recorderFactory = createDefaultBrowserRecorder, transcriptionProvider: providedTranscriptionProvider, reflectionProvider: providedReflectionProvider }: AppProps = {}) {
   const [route, setRoute] = useState<Route>("onboarding");
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -47,7 +48,10 @@ export default function App({ authGateway: providedAuthGateway, recorderFactory 
   const [processingMessage, setProcessingMessage] = useState("Echo is securing this reflection.");
   const transcriptionProvider = useMemo(() => providedTranscriptionProvider ?? createConfiguredTranscriptionProvider(), [providedTranscriptionProvider]);
   const audioLabTranscriptionProvider = useMemo(() => providedTranscriptionProvider ?? createConfiguredTranscriptionProvider(), [providedTranscriptionProvider]);
-  const reflectionProvider = useMemo(() => new DemoReflectionProvider(), []);
+  const reflectionProvider = useMemo(
+    () => providedReflectionProvider ?? (providedAuthGateway ? createConfiguredReflectionProvider({}) : createConfiguredReflectionProvider()),
+    [providedAuthGateway, providedReflectionProvider],
+  );
   const supabaseWorkflowClient = useMemo(
     () => (providedAuthGateway ? null : createConfiguredSupabaseClient()),
     [providedAuthGateway],
@@ -493,7 +497,7 @@ function ProcessingScreen({ message }: { message: string }) {
 function ResultScreen({ entry, onDone, onDelete }: { entry: ReflectionEntry; onDone: () => void; onDelete: () => void }) {
   return (
     <main className="screen result-screen">
-      <p className="eyebrow centered">{displayDate(entry.recordedAt).toUpperCase()} � {Math.round((entry.durationMs ?? 0) / 1000)}S</p>
+      <p className="eyebrow centered">{displayDate(entry.recordedAt).toUpperCase()} - {Math.round((entry.durationMs ?? 0) / 1000)}S</p>
       <section>
         <SectionLabel tone="clay">MY WORDS</SectionLabel>
         <ReflectionText className="transcript">"{entry.transcript}"</ReflectionText>
@@ -538,7 +542,7 @@ function HistoryScreen({ entries, onOpen, onToday }: { entries: ReflectionEntry[
             </span>
             <span>
               <span className="entry-meta">
-                {displayDate(entry.recordedAt).toUpperCase()} � {entry.moodTags[0] ?? "reflection"}
+                {displayDate(entry.recordedAt).toUpperCase()} - {entry.moodTags[0] ?? "reflection"}
               </span>
               <q>{entry.memoryQuote ?? entry.transcript}</q>
             </span>

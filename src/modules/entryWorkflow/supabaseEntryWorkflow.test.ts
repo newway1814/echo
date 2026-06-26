@@ -140,4 +140,39 @@ describe("Supabase entry workflow ports", () => {
       }),
     );
   });
+
+  it("persists separate transcription and reflection provider metadata", async () => {
+    const fake = createFakeClient();
+    const ports = createSupabaseEntryWorkflowPorts({
+      client: fake.client,
+      transcriptionProvider: { transcribe: vi.fn() },
+      reflectionProvider: { reflect: vi.fn() },
+      now: () => new Date("2026-06-26T01:03:00.000Z"),
+    });
+
+    await ports.saveEntryResult("entry-1", {
+      transcript: "I felt stretched thin today.",
+      transcriptionProvider: "gemini",
+      transcriptionModel: "gemini-transcribe",
+      mirrorNote: "You mentioned feeling stretched thin today.",
+      moodTags: ["stretched"],
+      memoryQuote: "I felt stretched thin today.",
+      reflectionProvider: "gemini",
+      reflectionModel: "gemini-reflect",
+      audioDeletedAt: "2026-06-26T01:02:00.000Z",
+    });
+
+    expect(fake.updates).toContainEqual(
+      expect.objectContaining({
+        table: "entries",
+        value: expect.objectContaining({
+          transcript: "I felt stretched thin today.",
+          transcription_provider: "gemini",
+          transcription_model: "gemini-transcribe",
+          reflection_provider: "gemini",
+          reflection_model: "gemini-reflect",
+        }),
+      }),
+    );
+  });
 });
