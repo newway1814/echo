@@ -2,20 +2,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { History, Home, Mic, Sparkles, UserRound } from "lucide-react";
 import type { ReflectionEntry } from "./modules/entries/types";
 import { createConfiguredAuthGateway } from "./modules/auth/supabaseClient";
-import { getAuthRedirectUrl } from "./modules/auth/auth";
+import { getAuthRedirectUrl, type AuthGateway } from "./modules/auth/auth";
 import { createDefaultBrowserRecorder, chooseRecordingMimeType, preferredAudioMimeTypes } from "./modules/recording/recording";
 import type { RecordedAudio, Recorder } from "./modules/recording/types";
 import { DemoReflectionProvider } from "./modules/reflection/reflection";
 import { DemoTranscriptionProvider } from "./modules/transcription/transcription";
+import { getDailyPromptSet } from "./modules/prompts/prompts";
 
 type Route = "onboarding" | "auth" | "today" | "recording" | "processing" | "result" | "history" | "audio-lab";
-
-const prompts = [
-  "What's sitting with you today?",
-  "What drained you today?",
-  "A small good thing",
-  "Something you keep avoiding",
-];
 
 function todayIsoDate() {
   return new Date().toISOString().slice(0, 10);
@@ -28,18 +22,23 @@ function displayDate(value: string) {
   }).format(new Date(value));
 }
 
-export default function App() {
+type AppProps = {
+  authGateway?: AuthGateway;
+};
+
+export default function App({ authGateway: providedAuthGateway }: AppProps = {}) {
   const [route, setRoute] = useState<Route>("onboarding");
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [authMessage, setAuthMessage] = useState<string | null>(null);
-  const [selectedPrompt, setSelectedPrompt] = useState(prompts[0]);
+  const promptSet = useMemo(() => getDailyPromptSet(), []);
+  const [selectedPrompt, setSelectedPrompt] = useState(promptSet.dailyPrompt);
   const [entries, setEntries] = useState<ReflectionEntry[]>(() => [demoEntry]);
   const [activeEntry, setActiveEntry] = useState<ReflectionEntry | null>(demoEntry);
   const [processingMessage, setProcessingMessage] = useState("Echo is securing this reflection.");
   const transcriptionProvider = useMemo(() => new DemoTranscriptionProvider(), []);
   const reflectionProvider = useMemo(() => new DemoReflectionProvider(), []);
-  const authGateway = useMemo(() => createConfiguredAuthGateway(), []);
+  const authGateway = useMemo(() => providedAuthGateway ?? createConfiguredAuthGateway(), [providedAuthGateway]);
 
   useEffect(() => {
     let mounted = true;
@@ -131,6 +130,7 @@ export default function App() {
         )}
         {route === "today" && (
           <TodayScreen
+            promptSet={promptSet}
             isSignedIn={isSignedIn}
             selectedPrompt={selectedPrompt}
             onSelectPrompt={setSelectedPrompt}
@@ -262,6 +262,7 @@ function AuthScreen({
 }
 
 function TodayScreen(props: {
+  promptSet: ReturnType<typeof getDailyPromptSet>;
   isSignedIn: boolean;
   selectedPrompt: string;
   onSelectPrompt: (prompt: string) => void;
@@ -274,11 +275,11 @@ function TodayScreen(props: {
     <main className="screen today-screen">
       <StatusBar />
       <section className="today-head">
-        <p className="eyebrow">FRIDAY · JUN 26</p>
-        <h1>Good evening. What's sitting with you today?</h1>
+        <p className="eyebrow">{props.promptSet.todayLabel}</p>
+        <h1>{props.promptSet.greeting}<br />{props.selectedPrompt}</h1>
       </section>
       <section className="prompt-chips" aria-label="Prompt chips">
-        {prompts.slice(1).map((prompt) => (
+        {props.promptSet.promptChips.map((prompt) => (
           <button
             className={props.selectedPrompt === prompt ? "selected" : ""}
             key={prompt}
@@ -289,7 +290,7 @@ function TodayScreen(props: {
         ))}
       </section>
       <section className="record-cta">
-        <button className="record-orb" aria-label="Start recording" disabled={offline} onClick={props.onRecord}>
+        <button className="record-orb" aria-label="Start recording" disabled={offline || !props.isSignedIn} onClick={props.onRecord}>
           <Mic size={36} />
         </button>
         <p>{offline ? "Echo needs a connection to transcribe without keeping your audio." : "Tap to speak - about a minute"}</p>
@@ -560,6 +561,8 @@ const demoEntry: ReflectionEntry = {
   reflectionProvider: "demo",
   reflectionModel: "demo-reflector",
 };
+
+
 
 
 
