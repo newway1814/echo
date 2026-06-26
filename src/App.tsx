@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { History, Home, Mic, Sparkles, UserRound } from "lucide-react";
+import { Mic, Sparkles } from "lucide-react";
 import type { ReflectionEntry } from "./modules/entries/types";
 import { createConfiguredAuthGateway } from "./modules/auth/supabaseClient";
 import { getAuthRedirectUrl, type AuthGateway } from "./modules/auth/auth";
@@ -8,8 +8,10 @@ import type { RecordedAudio, Recorder } from "./modules/recording/types";
 import { DemoReflectionProvider } from "./modules/reflection/reflection";
 import { DemoTranscriptionProvider } from "./modules/transcription/transcription";
 import { getDailyPromptSet } from "./modules/prompts/prompts";
+import { BottomNav, BreathingOrb, EchoButton, PromptChip, ReflectionText, SectionLabel, SoftCard, Tag } from "./modules/designSystem/designSystem";
+import { linenAndSageTokens } from "./modules/designSystem/tokens";
 
-type Route = "onboarding" | "auth" | "today" | "recording" | "processing" | "result" | "history" | "audio-lab";
+type Route = "onboarding" | "auth" | "today" | "recording" | "processing" | "result" | "history" | "audio-lab" | "design-system";
 
 function todayIsoDate() {
   return new Date().toISOString().slice(0, 10);
@@ -140,6 +142,7 @@ export default function App({ authGateway: providedAuthGateway, recorderFactory 
             onRecord={() => setRoute(isSignedIn ? "recording" : "auth")}
             onOpenHistory={() => setRoute("history")}
             onOpenAudioLab={() => setRoute("audio-lab")}
+            onOpenDesignSystem={() => setRoute("design-system")}
           />
         )}
         {route === "recording" && (
@@ -165,6 +168,7 @@ export default function App({ authGateway: providedAuthGateway, recorderFactory 
           />
         )}
         {route === "audio-lab" && <AudioLabScreen recorderFactory={recorderFactory} onBack={() => setRoute("today")} />}
+        {route === "design-system" && <DesignSystemPreview onBack={() => setRoute("today")} />}
       </div>
     </div>
   );
@@ -179,34 +183,13 @@ function StatusBar() {
   );
 }
 
-function BottomNav({ active, onToday, onHistory }: { active: "today" | "history"; onToday: () => void; onHistory: () => void }) {
-  return (
-    <nav className="bottom-nav" aria-label="Primary">
-      <button className={active === "today" ? "active" : ""} onClick={onToday}>
-        <Home size={16} />
-        Today
-      </button>
-      <button className={active === "history" ? "active" : ""} onClick={onHistory}>
-        <History size={16} />
-        Reflections
-      </button>
-      <button>
-        <UserRound size={16} />
-        You
-      </button>
-    </nav>
-  );
-}
-
 function OnboardingScreen({ onBegin }: { onBegin: () => void }) {
   return (
     <main className="screen onboarding-screen">
       <div className="brand">ECHO</div>
-      <div className="hero-orb" />
+      <BreathingOrb kind="hero" />
       <h1>You don't have to remember every detail of your life to understand who you're becoming.</h1>
-      <button className="primary dark" onClick={onBegin}>
-        Begin
-      </button>
+      <EchoButton tone="dark" onClick={onBegin}>Begin</EchoButton>
       <p className="quiet">Takes a minute a day</p>
     </main>
   );
@@ -252,9 +235,9 @@ function AuthScreen({
           onChange={(event) => setEmail(event.target.value)}
         />
       </label>
-      <button className="primary sage" onClick={() => void submit()} disabled={!configured || submitting || !email}>
+      <EchoButton tone="sage" onClick={() => void submit()} disabled={!configured || submitting || !email}>
         {submitting ? "Sending..." : "Email me a sign-in link"}
-      </button>
+      </EchoButton>
       <p className="quiet">
         {message ??
           (configured
@@ -273,6 +256,7 @@ function TodayScreen(props: {
   onRecord: () => void;
   onOpenHistory: () => void;
   onOpenAudioLab: () => void;
+  onOpenDesignSystem: () => void;
 }) {
   const offline = typeof navigator !== "undefined" && "onLine" in navigator && !navigator.onLine;
   return (
@@ -284,13 +268,9 @@ function TodayScreen(props: {
       </section>
       <section className="prompt-chips" aria-label="Prompt chips">
         {props.promptSet.promptChips.map((prompt) => (
-          <button
-            className={props.selectedPrompt === prompt ? "selected" : ""}
-            key={prompt}
-            onClick={() => props.onSelectPrompt(prompt)}
-          >
+          <PromptChip selected={props.selectedPrompt === prompt} key={prompt} onClick={() => props.onSelectPrompt(prompt)}>
             {prompt}
-          </button>
+          </PromptChip>
         ))}
       </section>
       <section className="record-cta">
@@ -303,9 +283,10 @@ function TodayScreen(props: {
         <span>YESTERDAY YOU SAID</span>
         <q>I slowed down enough to actually hear my daughter today.</q>
       </button>
-      <button className="audio-lab-link" onClick={props.onOpenAudioLab}>
-        Audio Lab
-      </button>
+      <div className="dev-links">
+        <button onClick={props.onOpenAudioLab}>Audio Lab</button>
+        <button onClick={props.onOpenDesignSystem}>Design System</button>
+      </div>
       <BottomNav active="today" onToday={() => undefined} onHistory={props.onOpenHistory} />
     </main>
   );
@@ -423,32 +404,28 @@ function ResultScreen({ entry, onDone, onDelete }: { entry: ReflectionEntry; onD
     <main className="screen result-screen">
       <p className="eyebrow centered">{displayDate(entry.recordedAt).toUpperCase()} · {Math.round((entry.durationMs ?? 0) / 1000)}S</p>
       <section>
-        <p className="section-label clay">MY WORDS</p>
-        <p className="transcript">"{entry.transcript}"</p>
+        <SectionLabel tone="clay">MY WORDS</SectionLabel>
+        <ReflectionText className="transcript">"{entry.transcript}"</ReflectionText>
       </section>
       <section>
-        <p className="section-label sage-text">MIRROR NOTE</p>
-        <div className="mirror-card">{entry.mirrorNote}</div>
+        <SectionLabel>MIRROR NOTE</SectionLabel>
+        <SoftCard className="mirror-card">{entry.mirrorNote}</SoftCard>
       </section>
       <section>
-        <p className="section-label clay">A MEMORY FROM TODAY</p>
+        <SectionLabel tone="clay">A MEMORY FROM TODAY</SectionLabel>
         <div className="memory-card">
           <p className="memory-date">{displayDate(entry.recordedAt).toUpperCase()}</p>
           <q>{entry.memoryQuote}</q>
           <div className="tag-row">
             {entry.moodTags.map((tag) => (
-              <span key={tag}>{tag}</span>
+              <Tag key={tag}>{tag}</Tag>
             ))}
           </div>
         </div>
       </section>
       <div className="result-actions">
-        <button className="primary sage" onClick={onDone}>
-          Done
-        </button>
-        <button className="primary muted" onClick={onDelete}>
-          Delete
-        </button>
+        <EchoButton tone="sage" onClick={onDone}>Done</EchoButton>
+        <EchoButton tone="muted" onClick={onDelete}>Delete</EchoButton>
       </div>
     </main>
   );
@@ -543,13 +520,36 @@ function AudioLabScreen({ recorderFactory, onBack }: { recorderFactory: Recorder
         </div>
       )}
       {error && <p className="quiet">{error}</p>}
-      <button className="primary dark" onClick={onBack}>
-        Back to Today
-      </button>
+      <EchoButton tone="dark" onClick={onBack}>Back to Today</EchoButton>
     </main>
   );
 }
 
+
+function DesignSystemPreview({ onBack }: { onBack: () => void }) {
+  return (
+    <main className="screen design-system-screen">
+      <p className="eyebrow">LINEN & SAGE</p>
+      <h1>Design primitives for Echo.</h1>
+      <div className="swatch-row" aria-label="Linen and Sage color tokens">
+        {Object.entries(linenAndSageTokens).map(([name, value]) => (
+          <span key={name} style={{ background: value }} title={`${name}: ${value}`} />
+        ))}
+      </div>
+      <section className="prompt-chips" aria-label="Design prompt chips">
+        <PromptChip selected>What drained you today?</PromptChip>
+        <PromptChip>A small good thing</PromptChip>
+      </section>
+      <BreathingOrb kind="record" label="Preview record orb" />
+      <SoftCard className="preview-card">
+        <SectionLabel tone="clay">MY WORDS</SectionLabel>
+        <ReflectionText>"By the time I got home I had almost nothing left."</ReflectionText>
+        <div className="tag-row"><Tag>depleted</Tag><Tag>boundaries</Tag></div>
+      </SoftCard>
+      <EchoButton tone="dark" onClick={onBack}>Back to Today</EchoButton>
+    </main>
+  );
+}
 const demoEntry: ReflectionEntry = {
   id: "demo-1",
   userId: "demo-user",
@@ -575,6 +575,9 @@ const demoEntry: ReflectionEntry = {
   reflectionProvider: "demo",
   reflectionModel: "demo-reflector",
 };
+
+
+
 
 
 

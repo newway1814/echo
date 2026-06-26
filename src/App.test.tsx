@@ -67,6 +67,16 @@ describe("Echo app shell", () => {
     expect(screen.queryByRole("audio")).not.toBeInTheDocument();
   });
 
+
+  it("exposes a Linen & Sage design-system preview route", async () => {
+    render(<App authGateway={signedInGateway()} />);
+
+    await waitFor(() => expect(screen.getByLabelText(/start recording/i)).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /design system/i }));
+
+    expect(screen.getByRole("heading", { name: /design primitives for echo/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/preview record orb/i)).toBeInTheDocument();
+  });
   it("keeps deferred features out of the Today screen", async () => {
     render(<App authGateway={signedInGateway()} />);
 
@@ -76,3 +86,4 @@ describe("Echo app shell", () => {
     expect(screen.queryByText(/keep original audio/i)).not.toBeInTheDocument();
   });
 });
+
