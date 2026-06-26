@@ -76,8 +76,14 @@ export default function App({ authGateway: providedAuthGateway, recorderFactory 
         if (!mounted || !session) return;
         setUserId(session.userId);
         setIsSignedIn(true);
-        await authGateway.captureTimezone(session.userId, Intl.DateTimeFormat().resolvedOptions().timeZone);
         if (mounted) setRoute("today");
+        try {
+          await authGateway.captureTimezone(session.userId, Intl.DateTimeFormat().resolvedOptions().timeZone);
+        } catch (timezoneError) {
+          if (mounted) {
+            setAuthMessage(timezoneError instanceof Error ? timezoneError.message : "Could not save your timezone.");
+          }
+        }
       } catch (error) {
         if (mounted) setAuthMessage(error instanceof Error ? error.message : "Could not restore your session.");
       }

@@ -75,6 +75,21 @@ describe("Echo app shell", () => {
     expect(screen.getByRole("button", { name: /email me a sign-in link/i })).toBeDisabled();
   });
 
+
+  it("does not block signed-in users when profile timezone capture is missing remotely", async () => {
+    render(
+      <App
+        authGateway={{
+          ...signedInGateway(),
+          async captureTimezone() {
+            throw new Error("Could not find the table 'public.profiles' in the schema cache");
+          },
+        }}
+      />,
+    );
+
+    expect(await screen.findByRole("heading", { name: /what's sitting with you today/i })).toBeInTheDocument();
+  });
   it("shows Today for signed-in users and passes selected prompt into recording", async () => {
     render(<App authGateway={signedInGateway()} recorderFactory={async () => fakeRecorder()} />);
 
