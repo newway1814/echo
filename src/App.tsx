@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Mic, Sparkles } from "lucide-react";
 import type { ReflectionEntry } from "./modules/entries/types";
-import { createConfiguredAuthGateway } from "./modules/auth/supabaseClient";
+import { runEntryWorkflow } from "./modules/entryWorkflow/entryWorkflow";
+import { createSupabaseEntryWorkflowPorts, type SupabaseEntryWorkflowClient } from "./modules/entryWorkflow/supabaseEntryWorkflow";
+import type { EntryWorkflowInput, EntryWorkflowPorts } from "./modules/entryWorkflow/types";
+import { createConfiguredAuthGateway, createConfiguredSupabaseClient } from "./modules/auth/supabaseClient";
 import { getAuthRedirectUrl, type AuthGateway } from "./modules/auth/auth";
 import { createDefaultBrowserRecorder, chooseRecordingMimeType, preferredAudioMimeTypes } from "./modules/recording/recording";
 import type { RecordedAudio, Recorder } from "./modules/recording/types";
-import { DemoReflectionProvider } from "./modules/reflection/reflection";
-import { DemoTranscriptionProvider, createConfiguredTranscriptionProvider, describeTranscriptionFailure, type TranscriptionProvider, type TranscriptionResult } from "./modules/transcription/transcription";
+import { DemoReflectionProvider, type ReflectionProvider } from "./modules/reflection/reflection";
+import { createConfiguredTranscriptionProvider, describeTranscriptionFailure, type TranscriptionProvider, type TranscriptionResult } from "./modules/transcription/transcription";
 import { getDailyPromptSet } from "./modules/prompts/prompts";
 import { BottomNav, BreathingOrb, EchoButton, PromptChip, ReflectionText, SectionLabel, SoftCard, Tag } from "./modules/designSystem/designSystem";
 import { linenAndSageTokens } from "./modules/designSystem/tokens";
@@ -42,9 +45,13 @@ export default function App({ authGateway: providedAuthGateway, recorderFactory 
   const [entries, setEntries] = useState<ReflectionEntry[]>(() => [demoEntry]);
   const [activeEntry, setActiveEntry] = useState<ReflectionEntry | null>(demoEntry);
   const [processingMessage, setProcessingMessage] = useState("Echo is securing this reflection.");
-  const transcriptionProvider = useMemo(() => providedTranscriptionProvider ?? new DemoTranscriptionProvider(), [providedTranscriptionProvider]);
+  const transcriptionProvider = useMemo(() => providedTranscriptionProvider ?? createConfiguredTranscriptionProvider(), [providedTranscriptionProvider]);
   const audioLabTranscriptionProvider = useMemo(() => providedTranscriptionProvider ?? createConfiguredTranscriptionProvider(), [providedTranscriptionProvider]);
   const reflectionProvider = useMemo(() => new DemoReflectionProvider(), []);
+  const supabaseWorkflowClient = useMemo(
+    () => (providedAuthGateway ? null : createConfiguredSupabaseClient()),
+    [providedAuthGateway],
+  );
   const authGateway = useMemo(() => providedAuthGateway ?? createConfiguredAuthGateway(), [providedAuthGateway]);
 
   useEffect(() => {
@@ -68,40 +75,69 @@ export default function App({ authGateway: providedAuthGateway, recorderFactory 
   }, [authGateway]);
 
   async function completeReflection(recording: RecordedAudio) {
-    setProcessingMessage("Echo is listening back and gathering its thoughts. You can close this while we keep going.");
+    const recordedAt = new Date().toISOString();
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    setProcessingMessage("Echo is securing this reflection.");
     setRoute("processing");
-    const transcription = await transcriptionProvider.transcribe({
+    await nextUiFrame();
+
+    const workflowInput: EntryWorkflowInput = {
+      userId: userId ?? "demo-user",
+      promptText: selectedPrompt,
+      timezone,
+      recordedAt,
       audio: recording.blob,
       mimeType: recording.mimeType,
       durationMs: recording.durationMs,
-      promptText: selectedPrompt,
-    });
-    const reflection = await reflectionProvider.reflect({
-      transcript: transcription.text,
-      promptText: selectedPrompt,
-    });
+    };
+
+    const workflowResult = await runEntryWorkflow(
+      workflowInput,
+      supabaseWorkflowClient
+        ? createSupabaseEntryWorkflowPorts({
+            client: supabaseWorkflowClient as unknown as SupabaseEntryWorkflowClient,
+            transcriptionProvider,
+            reflectionProvider,
+            onHandoffComplete: () => {
+              setProcessingMessage("Your reflection is safe to close. Echo is listening back now.");
+            },
+          })
+        : createClientEntryWorkflowPorts({
+            transcriptionProvider,
+            reflectionProvider,
+            onHandoffComplete: () => {
+              setProcessingMessage("Your reflection is safe to close. Echo is listening back now.");
+            },
+          }),
+    );
+
+    if (workflowResult.status !== "ready") {
+      setProcessingMessage(workflowResult.userMessage ?? "Echo could not finish this reflection.");
+      return;
+    }
+
     const entry: ReflectionEntry = {
-      id: crypto.randomUUID?.() ?? String(Date.now()),
-      userId: userId ?? "demo-user",
+      id: workflowResult.entryId ?? crypto.randomUUID?.() ?? String(Date.now()),
+      userId: workflowInput.userId,
       promptText: selectedPrompt,
-      recordedAt: new Date().toISOString(),
+      recordedAt,
       recordedDate: todayIsoDate(),
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timezone,
       status: "ready",
-      transcript: transcription.text,
-      mirrorNote: reflection.mirrorNote,
-      moodTags: reflection.moodTags,
-      memoryQuote: reflection.memoryQuote,
+      transcript: workflowResult.transcript,
+      mirrorNote: workflowResult.mirrorNote,
+      moodTags: workflowResult.moodTags ?? [],
+      memoryQuote: workflowResult.memoryQuote,
       durationMs: recording.durationMs,
       audioRetentionPolicy: "none",
       audioStoragePath: null,
       audioMimeType: null,
       audioSizeBytes: null,
-      audioDeletedAt: new Date().toISOString(),
-      transcriptionProvider: transcription.provider,
-      transcriptionModel: transcription.model,
-      reflectionProvider: reflection.provider,
-      reflectionModel: reflection.model,
+      audioDeletedAt: workflowResult.temporaryAudioDeletedAt ?? new Date().toISOString(),
+      transcriptionProvider: "workflow",
+      transcriptionModel: "workflow",
+      reflectionProvider: "workflow",
+      reflectionModel: "workflow",
     };
     setEntries((current) => [entry, ...current]);
     setActiveEntry(entry);
@@ -176,6 +212,59 @@ export default function App({ authGateway: providedAuthGateway, recorderFactory 
   );
 }
 
+
+
+function nextUiFrame() {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, 0);
+  });
+}
+type ClientEntryWorkflowPortsInput = {
+  transcriptionProvider: TranscriptionProvider;
+  reflectionProvider: ReflectionProvider;
+  onHandoffComplete: () => void;
+};
+
+function createClientEntryWorkflowPorts({
+  transcriptionProvider,
+  reflectionProvider,
+  onHandoffComplete,
+}: ClientEntryWorkflowPortsInput): EntryWorkflowPorts {
+  return {
+    async createEntry(input) {
+      return { id: crypto.randomUUID?.() ?? String(Date.now()), userId: input.userId };
+    },
+    async updateEntryStatus() {},
+    async uploadTemporaryAudio(entryId, input) {
+      onHandoffComplete();
+      return {
+        jobId: `provider-handoff-${entryId}`,
+        entryId,
+        userId: input.userId,
+        storagePath: `provider-handoff/${input.userId}/${entryId}.${input.mimeType.includes("mp4") ? "mp4" : "webm"}`,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+      };
+    },
+    async transcribe(_handoff, input) {
+      return transcriptionProvider.transcribe({
+        entryId: _handoff.jobId,
+        audio: input.audio,
+        mimeType: input.mimeType,
+        durationMs: input.durationMs,
+        promptText: input.promptText,
+      });
+    },
+    async deleteTemporaryAudio() {
+      return { deletedAt: new Date().toISOString() };
+    },
+    async reflect(input) {
+      return reflectionProvider.reflect(input);
+    },
+    async saveEntryResult() {},
+    async markFailed() {},
+    async recordEvent() {},
+  };
+}
 function StatusBar() {
   return (
     <div className="status-bar" aria-hidden="true">

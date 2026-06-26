@@ -6,18 +6,22 @@ import {
   type AuthGateway,
 } from "./auth";
 
-export function createConfiguredAuthGateway(): AuthGateway {
+export function createConfiguredSupabaseClient() {
   const config = getSupabaseAuthConfig(import.meta.env);
-  if (!config) return createMissingAuthGateway();
+  if (!config) return null;
 
-  return createSupabaseAuthGateway(
-    createClient(config.supabaseUrl, config.supabaseAnonKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-      },
-    }) as unknown as import("./auth").SupabaseAuthClient,
-  );
+  return createClient(config.supabaseUrl, config.supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  });
 }
 
+export function createConfiguredAuthGateway(): AuthGateway {
+  const client = createConfiguredSupabaseClient();
+  if (!client) return createMissingAuthGateway();
+
+  return createSupabaseAuthGateway(client as unknown as import("./auth").SupabaseAuthClient);
+}

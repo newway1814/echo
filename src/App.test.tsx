@@ -88,6 +88,24 @@ describe("Echo app shell", () => {
   });
 
 
+
+  it("distinguishes securing copy from safe-to-close copy during the entry workflow handoff", async () => {
+    const recorder = fakeRecorder();
+    const transcriptionProvider = fakeTranscriptionProvider({
+      transcribe: vi.fn(() => new Promise<Awaited<ReturnType<TranscriptionProvider["transcribe"]>>>(() => undefined)),
+    });
+    render(<App authGateway={signedInGateway()} recorderFactory={async () => recorder} transcriptionProvider={transcriptionProvider} />);
+
+    await waitFor(() => expect(screen.getByLabelText(/start recording/i)).toBeInTheDocument());
+    fireEvent.click(screen.getByLabelText(/start recording/i));
+    await waitFor(() => expect(recorder.start).toHaveBeenCalledOnce());
+
+    fireEvent.click(await screen.findByLabelText(/finish recording/i));
+
+    expect(await screen.findByText(/Echo is securing this reflection/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Your reflection is safe to close/i)).toBeInTheDocument();
+    expect(transcriptionProvider.transcribe).toHaveBeenCalledOnce();
+  });
   it("exposes a Linen & Sage design-system preview route", async () => {
     render(<App authGateway={signedInGateway()} />);
 

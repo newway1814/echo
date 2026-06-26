@@ -1,27 +1,35 @@
 import type { EntryWorkflowInput, EntryWorkflowPorts, EntryWorkflowResult, EntryStatus } from "./types";
 
+export class TemporaryAudioExpiredError extends Error {
+  constructor(message = "Temporary audio expired or was deleted.") {
+    super(message);
+    this.name = "TemporaryAudioExpiredError";
+  }
+}
+
 export async function runEntryWorkflow(
   input: EntryWorkflowInput,
   ports: EntryWorkflowPorts,
 ): Promise<EntryWorkflowResult> {
   const entry = await ports.createEntry(input);
-  await ports.recordEvent(entry.id, "recorded_locally");
+  await transition(entry.id, "recorded_locally", ports);
 
   let handoff;
   try {
-    await ports.recordEvent(entry.id, "uploading_for_transcription");
+    await transition(entry.id, "uploading_for_transcription", ports);
     handoff = await ports.uploadTemporaryAudio(entry.id, input);
-    await ports.recordEvent(entry.id, "transcribing");
+    await transition(entry.id, "transcribing", ports);
   } catch (error) {
     return fail(entry.id, "upload_failed", readableError(error), ports);
   }
 
   let transcription;
+  let deletion;
   try {
     transcription = await ports.transcribe(handoff, input);
-    await ports.deleteTemporaryAudio(handoff);
+    deletion = await ports.deleteTemporaryAudio(handoff);
     await ports.recordEvent(entry.id, "temporary_audio_deleted");
-    await ports.recordEvent(entry.id, "transcribed");
+    await transition(entry.id, "transcribed", ports);
   } catch (error) {
     const expired = isTemporaryAudioExpired(error);
     const status: EntryStatus = expired
@@ -34,7 +42,7 @@ export async function runEntryWorkflow(
   }
 
   try {
-    await ports.recordEvent(entry.id, "reflecting");
+    await transition(entry.id, "reflecting", ports);
     const reflection = await ports.reflect({
       transcript: transcription.text,
       promptText: input.promptText,
@@ -42,8 +50,9 @@ export async function runEntryWorkflow(
     await ports.saveEntryResult(entry.id, {
       ...transcription,
       ...reflection,
+      audioDeletedAt: deletion.deletedAt,
     });
-    await ports.recordEvent(entry.id, "ready");
+    await transition(entry.id, "ready", ports);
     return {
       status: "ready",
       entryId: entry.id,
@@ -52,10 +61,16 @@ export async function runEntryWorkflow(
       moodTags: reflection.moodTags,
       memoryQuote: reflection.memoryQuote,
       temporaryAudioDeleted: true,
+      temporaryAudioDeletedAt: deletion.deletedAt,
     };
   } catch (error) {
     return fail(entry.id, "reflection_failed", readableError(error), ports);
   }
+}
+
+async function transition(entryId: string, status: EntryStatus, ports: EntryWorkflowPorts) {
+  await ports.updateEntryStatus(entryId, status);
+  await ports.recordEvent(entryId, status);
 }
 
 async function fail(
@@ -74,7 +89,7 @@ async function fail(
 }
 
 function isTemporaryAudioExpired(error: unknown) {
-  return error instanceof Error && error.name === "TemporaryAudioExpiredError";
+  return error instanceof TemporaryAudioExpiredError || (error instanceof Error && error.name === "TemporaryAudioExpiredError");
 }
 
 function readableError(error: unknown) {

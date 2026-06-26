@@ -28,8 +28,14 @@ export type EntryWorkflowInput = {
 
 export type TemporaryAudioHandoff = {
   jobId: string;
+  entryId: string;
+  userId: string;
   storagePath: string;
   expiresAt: string;
+};
+
+export type TemporaryAudioDeletion = {
+  deletedAt: string;
 };
 
 export type EntryWorkflowResult = {
@@ -40,6 +46,7 @@ export type EntryWorkflowResult = {
   moodTags?: string[];
   memoryQuote?: string;
   temporaryAudioDeleted?: boolean;
+  temporaryAudioDeletedAt?: string;
   userMessage?: string;
 };
 
@@ -53,9 +60,10 @@ export type EntryWorkflowPorts = {
     handoff: TemporaryAudioHandoff,
     input: EntryWorkflowInput,
   ) => Promise<TranscriptionResult>;
-  deleteTemporaryAudio: (handoff: TemporaryAudioHandoff) => Promise<void>;
+  updateEntryStatus: (entryId: string, status: EntryStatus) => Promise<void>;
+  deleteTemporaryAudio: (handoff: TemporaryAudioHandoff) => Promise<TemporaryAudioDeletion>;
   reflect: (input: { transcript: string; promptText: string }) => Promise<ReflectionResult>;
-  saveEntryResult: (entryId: string, result: TranscriptionResult & ReflectionResult) => Promise<void>;
+  saveEntryResult: (entryId: string, result: TranscriptionResult & ReflectionResult & { audioDeletedAt: string }) => Promise<void>;
   markFailed: (entryId: string, status: EntryStatus, message: string) => Promise<void>;
   recordEvent: (entryId: string, event: EntryStatus | "temporary_audio_deleted") => Promise<void>;
 };

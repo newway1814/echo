@@ -1,23 +1,42 @@
 import { describe, expect, it } from "vitest";
-import { runEntryWorkflow } from "./entryWorkflow";
-import type { EntryWorkflowPorts } from "./types";
+import { TemporaryAudioExpiredError, runEntryWorkflow } from "./entryWorkflow";
+import type { EntryStatus, EntryWorkflowPorts } from "./types";
 
 const audio = new Blob(["voice"], { type: "audio/webm" });
 
-function createPorts(overrides: Partial<EntryWorkflowPorts> = {}): EntryWorkflowPorts {
-  const events: string[] = [];
-
+function workflowInput() {
   return {
-    createEntry: async () => {
-      events.push("createEntry");
-      return { id: "entry-1", userId: "user-1" };
+    userId: "user-1",
+    promptText: "What is sitting with you today?",
+    timezone: "Asia/Singapore",
+    recordedAt: "2026-06-26T01:00:00.000Z",
+    audio,
+    mimeType: "audio/webm",
+    durationMs: 30000,
+  };
+}
+
+function createPorts(overrides: Partial<EntryWorkflowPorts> = {}) {
+  const events: string[] = [];
+  const statuses: EntryStatus[] = [];
+  const savedResults: unknown[] = [];
+
+  const ports: EntryWorkflowPorts = {
+    createEntry: async (input) => {
+      events.push(`createEntry:${input.userId}`);
+      return { id: "entry-1", userId: input.userId };
     },
-    uploadTemporaryAudio: async () => {
-      events.push("uploadTemporaryAudio");
+    updateEntryStatus: async (_entryId, status) => {
+      statuses.push(status);
+    },
+    uploadTemporaryAudio: async (_entryId, input) => {
+      events.push(`uploadTemporaryAudio:${input.mimeType}`);
       return {
         jobId: "job-1",
-        storagePath: "tmp/user-1/entry-1.webm",
-        expiresAt: "2026-06-26T01:00:00.000Z",
+        entryId: "entry-1",
+        userId: input.userId,
+        storagePath: "tmp-transcription/user-1/entry-1.webm",
+        expiresAt: "2026-06-26T01:10:00.000Z",
       };
     },
     transcribe: async () => {
@@ -30,6 +49,7 @@ function createPorts(overrides: Partial<EntryWorkflowPorts> = {}): EntryWorkflow
     },
     deleteTemporaryAudio: async () => {
       events.push("deleteTemporaryAudio");
+      return { deletedAt: "2026-06-26T01:02:00.000Z" };
     },
     reflect: async () => {
       events.push("reflect");
@@ -41,65 +61,81 @@ function createPorts(overrides: Partial<EntryWorkflowPorts> = {}): EntryWorkflow
         model: "gemini-2.5-flash",
       };
     },
-    saveEntryResult: async () => {
+    saveEntryResult: async (_entryId, result) => {
       events.push("saveEntryResult");
+      savedResults.push(result);
     },
-    markFailed: async () => {
-      events.push("markFailed");
+    markFailed: async (_entryId, status, message) => {
+      events.push(`markFailed:${status}:${message}`);
     },
     recordEvent: async (_entryId, event) => {
-      events.push(event);
+      events.push(`event:${event}`);
     },
     ...overrides,
   };
+
+  return { ports, events, statuses, savedResults };
 }
 
 describe("entry workflow", () => {
-  it("hands off temporary audio, transcribes, deletes audio, reflects, and saves a ready entry", async () => {
-    const ports = createPorts();
+  it("creates an owned entry, hands off audio, transcribes, deletes audio, reflects, and saves deletion metadata", async () => {
+    const { ports, events, statuses, savedResults } = createPorts();
 
-    const result = await runEntryWorkflow(
-      {
-        userId: "user-1",
-        promptText: "What is sitting with you today?",
-        timezone: "Asia/Singapore",
-        recordedAt: "2026-06-26T01:00:00.000Z",
-        audio,
-        mimeType: "audio/webm",
-        durationMs: 30000,
-      },
-      ports,
-    );
+    const result = await runEntryWorkflow(workflowInput(), ports);
 
-    expect(result.status).toBe("ready");
-    expect(result.entryId).toBe("entry-1");
-    expect(result.transcript).toBe("I felt stretched thin today.");
-    expect(result.temporaryAudioDeleted).toBe(true);
+    expect(result).toMatchObject({
+      status: "ready",
+      entryId: "entry-1",
+      transcript: "I felt stretched thin today.",
+      temporaryAudioDeleted: true,
+      temporaryAudioDeletedAt: "2026-06-26T01:02:00.000Z",
+    });
+    expect(statuses).toEqual([
+      "recorded_locally",
+      "uploading_for_transcription",
+      "transcribing",
+      "transcribed",
+      "reflecting",
+      "ready",
+    ]);
+    expect(events).toContain("createEntry:user-1");
+    expect(events).toContain("uploadTemporaryAudio:audio/webm");
+    expect(events).toContain("event:temporary_audio_deleted");
+    expect(savedResults).toEqual([
+      expect.objectContaining({
+        text: "I felt stretched thin today.",
+        audioDeletedAt: "2026-06-26T01:02:00.000Z",
+      }),
+    ]);
   });
 
-  it("returns an expired transcription failure when temporary audio is gone", async () => {
-    const ports = createPorts({
+  it("distinguishes retryable transcription failures before deleting temporary audio", async () => {
+    const { ports, statuses, events } = createPorts({
       transcribe: async () => {
-        const error = new Error("temporary audio expired");
-        error.name = "TemporaryAudioExpiredError";
-        throw error;
+        throw new Error("Gemini timed out");
       },
     });
 
-    const result = await runEntryWorkflow(
-      {
-        userId: "user-1",
-        promptText: "What drained you today?",
-        timezone: "Asia/Singapore",
-        recordedAt: "2026-06-26T01:00:00.000Z",
-        audio,
-        mimeType: "audio/webm",
-        durationMs: 30000,
+    const result = await runEntryWorkflow(workflowInput(), ports);
+
+    expect(result.status).toBe("transcription_failed_retryable");
+    expect(result.userMessage).toContain("Try again");
+    expect(statuses).toEqual(["recorded_locally", "uploading_for_transcription", "transcribing"]);
+    expect(events).not.toContain("deleteTemporaryAudio");
+    expect(events).toContain("event:transcription_failed_retryable");
+  });
+
+  it("returns an expired transcription failure when temporary audio is gone", async () => {
+    const { ports } = createPorts({
+      transcribe: async () => {
+        throw new TemporaryAudioExpiredError();
       },
-      ports,
-    );
+    });
+
+    const result = await runEntryWorkflow(workflowInput(), ports);
 
     expect(result.status).toBe("transcription_failed_expired");
     expect(result.userMessage).toContain("not kept");
+    expect(result.userMessage).toContain("record it again");
   });
 });
