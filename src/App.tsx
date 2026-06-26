@@ -6,7 +6,7 @@ import { getAuthRedirectUrl, type AuthGateway } from "./modules/auth/auth";
 import { createDefaultBrowserRecorder, chooseRecordingMimeType, preferredAudioMimeTypes } from "./modules/recording/recording";
 import type { RecordedAudio, Recorder } from "./modules/recording/types";
 import { DemoReflectionProvider } from "./modules/reflection/reflection";
-import { DemoTranscriptionProvider } from "./modules/transcription/transcription";
+import { DemoTranscriptionProvider, createConfiguredTranscriptionProvider, describeTranscriptionFailure, type TranscriptionProvider, type TranscriptionResult } from "./modules/transcription/transcription";
 import { getDailyPromptSet } from "./modules/prompts/prompts";
 import { BottomNav, BreathingOrb, EchoButton, PromptChip, ReflectionText, SectionLabel, SoftCard, Tag } from "./modules/designSystem/designSystem";
 import { linenAndSageTokens } from "./modules/designSystem/tokens";
@@ -29,9 +29,10 @@ type RecorderFactory = () => Promise<Recorder>;
 type AppProps = {
   authGateway?: AuthGateway;
   recorderFactory?: RecorderFactory;
+  transcriptionProvider?: TranscriptionProvider;
 };
 
-export default function App({ authGateway: providedAuthGateway, recorderFactory = createDefaultBrowserRecorder }: AppProps = {}) {
+export default function App({ authGateway: providedAuthGateway, recorderFactory = createDefaultBrowserRecorder, transcriptionProvider: providedTranscriptionProvider }: AppProps = {}) {
   const [route, setRoute] = useState<Route>("onboarding");
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -41,7 +42,8 @@ export default function App({ authGateway: providedAuthGateway, recorderFactory 
   const [entries, setEntries] = useState<ReflectionEntry[]>(() => [demoEntry]);
   const [activeEntry, setActiveEntry] = useState<ReflectionEntry | null>(demoEntry);
   const [processingMessage, setProcessingMessage] = useState("Echo is securing this reflection.");
-  const transcriptionProvider = useMemo(() => new DemoTranscriptionProvider(), []);
+  const transcriptionProvider = useMemo(() => providedTranscriptionProvider ?? new DemoTranscriptionProvider(), [providedTranscriptionProvider]);
+  const audioLabTranscriptionProvider = useMemo(() => providedTranscriptionProvider ?? createConfiguredTranscriptionProvider(), [providedTranscriptionProvider]);
   const reflectionProvider = useMemo(() => new DemoReflectionProvider(), []);
   const authGateway = useMemo(() => providedAuthGateway ?? createConfiguredAuthGateway(), [providedAuthGateway]);
 
@@ -167,7 +169,7 @@ export default function App({ authGateway: providedAuthGateway, recorderFactory 
             onToday={() => setRoute("today")}
           />
         )}
-        {route === "audio-lab" && <AudioLabScreen recorderFactory={recorderFactory} onBack={() => setRoute("today")} />}
+        {route === "audio-lab" && <AudioLabScreen recorderFactory={recorderFactory} transcriptionProvider={audioLabTranscriptionProvider} promptText={selectedPrompt} onBack={() => setRoute("today")} />}
         {route === "design-system" && <DesignSystemPreview onBack={() => setRoute("today")} />}
       </div>
     </div>
@@ -402,7 +404,7 @@ function ProcessingScreen({ message }: { message: string }) {
 function ResultScreen({ entry, onDone, onDelete }: { entry: ReflectionEntry; onDone: () => void; onDelete: () => void }) {
   return (
     <main className="screen result-screen">
-      <p className="eyebrow centered">{displayDate(entry.recordedAt).toUpperCase()} · {Math.round((entry.durationMs ?? 0) / 1000)}S</p>
+      <p className="eyebrow centered">{displayDate(entry.recordedAt).toUpperCase()} ï¿½ {Math.round((entry.durationMs ?? 0) / 1000)}S</p>
       <section>
         <SectionLabel tone="clay">MY WORDS</SectionLabel>
         <ReflectionText className="transcript">"{entry.transcript}"</ReflectionText>
@@ -447,7 +449,7 @@ function HistoryScreen({ entries, onOpen, onToday }: { entries: ReflectionEntry[
             </span>
             <span>
               <span className="entry-meta">
-                {displayDate(entry.recordedAt).toUpperCase()} · {entry.moodTags[0] ?? "reflection"}
+                {displayDate(entry.recordedAt).toUpperCase()} ï¿½ {entry.moodTags[0] ?? "reflection"}
               </span>
               <q>{entry.memoryQuote ?? entry.transcript}</q>
             </span>
@@ -459,13 +461,16 @@ function HistoryScreen({ entries, onOpen, onToday }: { entries: ReflectionEntry[
   );
 }
 
-function AudioLabScreen({ recorderFactory, onBack }: { recorderFactory: RecorderFactory; onBack: () => void }) {
+function AudioLabScreen({ recorderFactory, transcriptionProvider, promptText, onBack }: { recorderFactory: RecorderFactory; transcriptionProvider: TranscriptionProvider; promptText: string; onBack: () => void }) {
   const [recording, setRecording] = useState<RecordedAudio | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [permissionState, setPermissionState] = useState<"idle" | "granted" | "denied" | "unavailable">("idle");
   const [activeTestSeconds, setActiveTestSeconds] = useState<number | null>(null);
   const [statusMessage, setStatusMessage] = useState("Microphone permission has not been requested yet.");
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
+  const [transcription, setTranscription] = useState<TranscriptionResult | null>(null);
+  const [transcribing, setTranscribing] = useState(false);
+  const [transcriptionError, setTranscriptionError] = useState<string | null>(null);
   const recorderRef = useRef<Recorder | null>(null);
   const timerRef = useRef<number | null>(null);
 
@@ -547,6 +552,30 @@ function AudioLabScreen({ recorderFactory, onBack }: { recorderFactory: Recorder
     setStatusMessage("Recording canceled before upload or transcription.");
   }
 
+
+  async function submitForTranscription() {
+    if (!recording || transcribing) return;
+    setTranscribing(true);
+    setTranscription(null);
+    setTranscriptionError(null);
+    setStatusMessage("Submitting recording to server-side transcription...");
+    try {
+      const result = await transcriptionProvider.transcribe({
+        audio: recording.blob,
+        mimeType: recording.mimeType,
+        durationMs: recording.durationMs,
+        promptText,
+      });
+      setTranscription(result);
+      setStatusMessage("Transcription returned from server-side provider.");
+    } catch (submitError) {
+      const message = describeTranscriptionFailure(submitError);
+      setTranscriptionError(message);
+      setStatusMessage("Transcription failed. Capture this failure on the iPhone checklist.");
+    } finally {
+      setTranscribing(false);
+    }
+  }
   const browserMetadata = [
     ["User agent", typeof navigator === "undefined" ? "unknown" : navigator.userAgent],
     ["Platform", typeof navigator === "undefined" ? "unknown" : navigator.platform || "not reported"],
@@ -602,8 +631,19 @@ function AudioLabScreen({ recorderFactory, onBack }: { recorderFactory: Recorder
           <div><span>Duration</span><strong>{Math.round(recording.durationMs / 1000)}s</strong></div>
           <p className="quiet">Local playback only. Echo MVP still deletes temporary audio after transcription.</p>
           {playbackUrl && <audio controls src={playbackUrl} aria-label="Audio Lab local diagnostic playback" />}
+          <button className="primary sage" onClick={() => void submitForTranscription()} disabled={transcribing} aria-label="Submit to transcription">
+            {transcribing ? "Transcribing..." : "Submit to transcription"}
+          </button>
         </div>
       )}
+      {transcription && (
+        <div className="diagnostic-card">
+          <div><span>Transcript</span><strong>{transcription.text}</strong></div>
+          <div><span>Provider / model</span><strong>{transcription.provider} / {transcription.model}</strong></div>
+          {transcription.language && <div><span>Language</span><strong>{transcription.language}</strong></div>}
+        </div>
+      )}
+      {transcriptionError && <p className="quiet">{transcriptionError}</p>}
       {error && <p className="quiet">{error}</p>}
       <EchoButton tone="dark" onClick={onBack}>Back to Today</EchoButton>
     </main>
@@ -659,4 +699,3 @@ const demoEntry: ReflectionEntry = {
   reflectionProvider: "demo",
   reflectionModel: "demo-reflector",
 };
-

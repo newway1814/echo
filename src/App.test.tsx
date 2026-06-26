@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import type { AuthGateway } from "./modules/auth/auth";
 import type { Recorder } from "./modules/recording/types";
+import type { TranscriptionProvider } from "./modules/transcription/transcription";
 
 function signedInGateway(): AuthGateway {
   return {
@@ -14,6 +15,17 @@ function signedInGateway(): AuthGateway {
     async captureTimezone() {},
     async signOut() {},
   };
+}
+
+function fakeTranscriptionProvider(overrides: Partial<TranscriptionProvider> = {}) {
+  return {
+    transcribe: vi.fn(async () => ({
+      text: "I felt clearer after walking.",
+      provider: "gemini",
+      model: "gemini-2.5-flash",
+    })),
+    ...overrides,
+  } satisfies TranscriptionProvider;
 }
 
 function fakeRecorder(overrides: Partial<Recorder> = {}) {
@@ -62,7 +74,7 @@ describe("Echo app shell", () => {
 
   it("finishes a recording through the shared recorder without adding replay UI", async () => {
     const recorder = fakeRecorder();
-    render(<App authGateway={signedInGateway()} recorderFactory={async () => recorder} />);
+    render(<App authGateway={signedInGateway()} recorderFactory={async () => recorder} transcriptionProvider={fakeTranscriptionProvider()} />);
 
     await waitFor(() => expect(screen.getByLabelText(/start recording/i)).toBeInTheDocument());
     fireEvent.click(screen.getByLabelText(/start recording/i));
@@ -114,6 +126,38 @@ describe("Echo app shell", () => {
     expect(screen.getAllByText(/local playback only/i).length).toBeGreaterThanOrEqual(1);
   });
 
+
+  it("submits an Audio Lab recording for transcription and shows provider metadata", async () => {
+    const recorder = fakeRecorder({
+      finish: vi.fn(async () => ({
+        blob: new Blob(["voice-diagnostic"], { type: "audio/webm" }),
+        mimeType: "audio/webm",
+        sizeBytes: 16,
+        durationMs: 10000,
+      })),
+    });
+    const transcriptionProvider = fakeTranscriptionProvider();
+    render(
+      <App
+        authGateway={signedInGateway()}
+        recorderFactory={async () => recorder}
+        transcriptionProvider={transcriptionProvider}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /audio lab/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /audio lab/i }));
+    fireEvent.click(screen.getByRole("button", { name: /test 10s/i }));
+    await waitFor(() => expect(recorder.start).toHaveBeenCalledOnce());
+    fireEvent.click(screen.getByRole("button", { name: /stop diagnostic recording/i }));
+    await waitFor(() => expect(recorder.finish).toHaveBeenCalledOnce());
+
+    fireEvent.click(screen.getByRole("button", { name: /submit to transcription/i }));
+
+    await waitFor(() => expect(transcriptionProvider.transcribe).toHaveBeenCalledOnce());
+    expect(await screen.findByText("I felt clearer after walking.")).toBeInTheDocument();
+    expect(screen.getByText("gemini / gemini-2.5-flash")).toBeInTheDocument();
+  });
   it("surfaces Audio Lab permission failures and supports canceling an active test", async () => {
     const deniedRecorder = fakeRecorder({
       start: vi.fn(async () => {
@@ -154,4 +198,3 @@ describe("Echo app shell", () => {
     expect(screen.queryByText(/keep original audio/i)).not.toBeInTheDocument();
   });
 });
-
