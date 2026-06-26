@@ -22,11 +22,14 @@ function displayDate(value: string) {
   }).format(new Date(value));
 }
 
+type RecorderFactory = () => Promise<Recorder>;
+
 type AppProps = {
   authGateway?: AuthGateway;
+  recorderFactory?: RecorderFactory;
 };
 
-export default function App({ authGateway: providedAuthGateway }: AppProps = {}) {
+export default function App({ authGateway: providedAuthGateway, recorderFactory = createDefaultBrowserRecorder }: AppProps = {}) {
   const [route, setRoute] = useState<Route>("onboarding");
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -143,6 +146,7 @@ export default function App({ authGateway: providedAuthGateway }: AppProps = {})
           <RecordingScreen
             prompt={selectedPrompt}
             onDiscard={() => setRoute("today")}
+            recorderFactory={recorderFactory}
             onFinish={(recording) => void completeReflection(recording)}
           />
         )}
@@ -160,7 +164,7 @@ export default function App({ authGateway: providedAuthGateway }: AppProps = {})
             onToday={() => setRoute("today")}
           />
         )}
-        {route === "audio-lab" && <AudioLabScreen onBack={() => setRoute("today")} />}
+        {route === "audio-lab" && <AudioLabScreen recorderFactory={recorderFactory} onBack={() => setRoute("today")} />}
       </div>
     </div>
   );
@@ -307,7 +311,17 @@ function TodayScreen(props: {
   );
 }
 
-function RecordingScreen({ prompt, onDiscard, onFinish }: { prompt: string; onDiscard: () => void; onFinish: (recording: RecordedAudio) => void }) {
+function RecordingScreen({
+  prompt,
+  recorderFactory,
+  onDiscard,
+  onFinish,
+}: {
+  prompt: string;
+  recorderFactory: RecorderFactory;
+  onDiscard: () => void;
+  onFinish: (recording: RecordedAudio) => void;
+}) {
   const recorderRef = useRef<Recorder | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -319,7 +333,7 @@ function RecordingScreen({ prompt, onDiscard, onFinish }: { prompt: string; onDi
 
     async function start() {
       try {
-        const recorder = await createDefaultBrowserRecorder();
+        const recorder = await recorderFactory();
         if (!mounted) return;
         recorderRef.current = recorder;
         await recorder.start();
@@ -344,7 +358,7 @@ function RecordingScreen({ prompt, onDiscard, onFinish }: { prompt: string; onDi
     };
     // The recorder lifecycle starts once when the screen mounts; finish reads refs/current state intentionally.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [recorderFactory]);
 
   async function finish() {
     if (finishing || !recorderRef.current) return;
@@ -468,7 +482,7 @@ function HistoryScreen({ entries, onOpen, onToday }: { entries: ReflectionEntry[
   );
 }
 
-function AudioLabScreen({ onBack }: { onBack: () => void }) {
+function AudioLabScreen({ recorderFactory, onBack }: { recorderFactory: RecorderFactory; onBack: () => void }) {
   const [recording, setRecording] = useState<RecordedAudio | null>(null);
   const [error, setError] = useState<string | null>(null);
   const recorderRef = useRef<Recorder | null>(null);
@@ -477,7 +491,7 @@ function AudioLabScreen({ onBack }: { onBack: () => void }) {
     setError(null);
     setRecording(null);
     try {
-      const recorder = await createDefaultBrowserRecorder();
+      const recorder = await recorderFactory();
       recorderRef.current = recorder;
       await recorder.start();
       window.setTimeout(() => void finish(), seconds * 1000);
@@ -561,6 +575,8 @@ const demoEntry: ReflectionEntry = {
   reflectionProvider: "demo",
   reflectionModel: "demo-reflector",
 };
+
+
 
 
 

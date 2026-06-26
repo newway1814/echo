@@ -63,16 +63,9 @@ export function createBrowserRecorder(ports: BrowserRecorderPorts): Recorder {
       }
 
       try {
-        recorder.stop();
         const blob = recorder.requestStop
-          ? await recorder.requestStop()
-          : await new Promise<Blob>((resolve) => {
-              const chunks: Blob[] = [];
-              recorder?.addEventListener?.("dataavailable", (event) => chunks.push(event.data));
-              recorder?.addEventListener?.("stop", () =>
-                resolve(new Blob(chunks, { type: recorder?.mimeType })),
-              );
-            });
+          ? await stopRecorderWithRequest(recorder)
+          : await stopRecorderWithEvents(recorder);
 
         const durationMs = Math.max(0, getNow() - startedAt);
         const mimeType = blob.type || recorder.mimeType || "application/octet-stream";
@@ -94,12 +87,33 @@ export function createBrowserRecorder(ports: BrowserRecorderPorts): Recorder {
     },
 
     async discard() {
-      recorder = undefined;
-      await stopTracks();
+      try {
+        recorder?.stop();
+      } catch {
+        // Some browsers throw when stopping an already-inactive recorder.
+      } finally {
+        recorder = undefined;
+        await stopTracks();
+      }
     },
   };
 }
 
+
+async function stopRecorderWithRequest(recorder: ReturnType<BrowserRecorderPorts["createMediaRecorder"]>) {
+  recorder.stop();
+  return recorder.requestStop!();
+}
+
+async function stopRecorderWithEvents(recorder: ReturnType<BrowserRecorderPorts["createMediaRecorder"]>) {
+  const chunks: Blob[] = [];
+  const stopped = new Promise<Blob>((resolve) => {
+    recorder.addEventListener?.("dataavailable", (event) => chunks.push(event.data));
+    recorder.addEventListener?.("stop", () => resolve(new Blob(chunks, { type: recorder.mimeType })));
+  });
+  recorder.stop();
+  return stopped;
+}
 export async function createDefaultBrowserRecorder(): Promise<Recorder> {
   if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
     throw new RecordingFailure("recorder_unavailable", "This browser cannot record audio.");
@@ -111,3 +125,4 @@ export async function createDefaultBrowserRecorder(): Promise<Recorder> {
     chooseMimeType: () => chooseRecordingMimeType(),
   });
 }
+
