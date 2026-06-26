@@ -605,6 +605,21 @@ h1 {
   color: var(--muted);
 }
 
+.diagnostic-card strong {
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.diagnostic-card audio {
+  width: 100%;
+}
+
+.audio-lab-actions {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0;
+}
+
 @media (max-width: 430px) {
   .app-canvas {
     padding: 0;

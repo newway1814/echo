@@ -462,40 +462,109 @@ function HistoryScreen({ entries, onOpen, onToday }: { entries: ReflectionEntry[
 function AudioLabScreen({ recorderFactory, onBack }: { recorderFactory: RecorderFactory; onBack: () => void }) {
   const [recording, setRecording] = useState<RecordedAudio | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [permissionState, setPermissionState] = useState<"idle" | "granted" | "denied" | "unavailable">("idle");
+  const [activeTestSeconds, setActiveTestSeconds] = useState<number | null>(null);
+  const [statusMessage, setStatusMessage] = useState("Microphone permission has not been requested yet.");
+  const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
   const recorderRef = useRef<Recorder | null>(null);
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+      void recorderRef.current?.discard();
+      if (playbackUrl) URL.revokeObjectURL?.(playbackUrl);
+    };
+  }, [playbackUrl]);
+
+  function clearActiveTimer() {
+    if (timerRef.current) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }
+
+  function resetPlaybackUrl() {
+    if (playbackUrl) URL.revokeObjectURL?.(playbackUrl);
+    setPlaybackUrl(null);
+  }
+
+  function markFailure(startError: unknown) {
+    const message = startError instanceof Error ? startError.message : "Audio Lab could not start recording.";
+    const normalized = message.toLowerCase();
+    const nextState = normalized.includes("permission") || normalized.includes("denied") ? "denied" : "unavailable";
+    setPermissionState(nextState);
+    setStatusMessage(nextState === "denied" ? "Permission denied or unavailable." : "Microphone unavailable in this browser context.");
+    setError(message);
+    setActiveTestSeconds(null);
+    recorderRef.current = null;
+  }
 
   async function start(seconds: number) {
+    clearActiveTimer();
+    resetPlaybackUrl();
     setError(null);
     setRecording(null);
+    setActiveTestSeconds(seconds);
+    setStatusMessage("Requesting microphone permission...");
     try {
       const recorder = await recorderFactory();
       recorderRef.current = recorder;
       await recorder.start();
-      window.setTimeout(() => void finish(), seconds * 1000);
+      setPermissionState("granted");
+      setStatusMessage(`Permission granted. Recording ${seconds}s test.`);
+      timerRef.current = window.setTimeout(() => void finish(), seconds * 1000);
     } catch (startError) {
-      setError(startError instanceof Error ? startError.message : "Audio Lab could not start recording.");
+      clearActiveTimer();
+      markFailure(startError);
     }
   }
 
   async function finish() {
     if (!recorderRef.current) return;
+    clearActiveTimer();
     try {
       const nextRecording = await recorderRef.current.finish();
       setRecording(nextRecording);
+      setPlaybackUrl(URL.createObjectURL(nextRecording.blob));
+      setStatusMessage("Recording complete. Local playback only for diagnostics.");
     } catch (finishError) {
       setError(finishError instanceof Error ? finishError.message : "Audio Lab could not finish recording.");
+      setStatusMessage("Recording failed during stop. Capture this on the iPhone checklist.");
     } finally {
+      setActiveTestSeconds(null);
       recorderRef.current = null;
     }
   }
+
+  async function cancel() {
+    clearActiveTimer();
+    await recorderRef.current?.discard();
+    recorderRef.current = null;
+    setActiveTestSeconds(null);
+    setRecording(null);
+    resetPlaybackUrl();
+    setStatusMessage("Recording canceled before upload or transcription.");
+  }
+
+  const browserMetadata = [
+    ["User agent", typeof navigator === "undefined" ? "unknown" : navigator.userAgent],
+    ["Platform", typeof navigator === "undefined" ? "unknown" : navigator.platform || "not reported"],
+    ["Secure context", typeof window === "undefined" ? "unknown" : window.isSecureContext ? "yes" : "no"],
+    ["MediaRecorder", typeof MediaRecorder === "undefined" ? "unavailable" : "available"],
+  ];
 
   return (
     <main className="screen audio-lab-screen">
       <p className="eyebrow">AUDIO LAB</p>
       <h1>Prove the voice loop before polish.</h1>
       <p className="body-copy">
-        Use this internal screen on a real iPhone to test permission, MIME output, upload, Gemini transcription, and cleanup.
+        Internal diagnostics for permission, MIME output, duration caps, cancellation, local playback, and useful failure notes.
       </p>
+      <div className="diagnostic-card">
+        <div><span>Permission</span><strong>{permissionState}</strong></div>
+        <div><span>Status</span><strong>{statusMessage}</strong></div>
+      </div>
       <div className="diagnostic-card">
         {preferredAudioMimeTypes.map((candidate) => (
           <div key={candidate}>
@@ -504,19 +573,35 @@ function AudioLabScreen({ recorderFactory, onBack }: { recorderFactory: Recorder
           </div>
         ))}
       </div>
+      <div className="diagnostic-card">
+        {browserMetadata.map(([label, value]) => (
+          <div key={label}><span>{label}</span><strong>{value}</strong></div>
+        ))}
+      </div>
       <div className="audio-lab-actions">
         {[10, 30, 60].map((seconds) => (
-          <button className="primary muted" key={seconds} onClick={() => void start(seconds)}>
+          <button className="primary muted" key={seconds} disabled={activeTestSeconds !== null} onClick={() => void start(seconds)}>
             Test {seconds}s
           </button>
         ))}
       </div>
+      {activeTestSeconds !== null && (
+        <div className="audio-lab-actions">
+          <button className="primary sage" onClick={() => void finish()} aria-label="Stop diagnostic recording">
+            Stop
+          </button>
+          <button className="primary muted" onClick={() => void cancel()} aria-label="Cancel diagnostic recording">
+            Cancel
+          </button>
+        </div>
+      )}
       {recording && (
         <div className="diagnostic-card">
-          <div><span>Actual MIME</span><strong>{recording.mimeType}</strong></div>
+          <div><span>Actual MIME</span><strong>{recording.mimeType || "not reported"}</strong></div>
           <div><span>Blob size</span><strong>{recording.sizeBytes} bytes</strong></div>
           <div><span>Duration</span><strong>{Math.round(recording.durationMs / 1000)}s</strong></div>
-          <audio controls src={URL.createObjectURL(recording.blob)} />
+          <p className="quiet">Local playback only. Echo MVP still deletes temporary audio after transcription.</p>
+          {playbackUrl && <audio controls src={playbackUrl} aria-label="Audio Lab local diagnostic playback" />}
         </div>
       )}
       {error && <p className="quiet">{error}</p>}
@@ -524,7 +609,6 @@ function AudioLabScreen({ recorderFactory, onBack }: { recorderFactory: Recorder
     </main>
   );
 }
-
 
 function DesignSystemPreview({ onBack }: { onBack: () => void }) {
   return (
@@ -575,14 +659,4 @@ const demoEntry: ReflectionEntry = {
   reflectionProvider: "demo",
   reflectionModel: "demo-reflector",
 };
-
-
-
-
-
-
-
-
-
-
 

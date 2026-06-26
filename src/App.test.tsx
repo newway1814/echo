@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import type { AuthGateway } from "./modules/auth/auth";
 import type { Recorder } from "./modules/recording/types";
@@ -31,6 +31,14 @@ function fakeRecorder(overrides: Partial<Recorder> = {}) {
 }
 
 describe("Echo app shell", () => {
+  beforeEach(() => {
+    URL.createObjectURL = vi.fn(() => "blob:echo-diagnostic");
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
   it("starts with onboarding and routes to auth before Today", async () => {
     render(<App />);
 
@@ -76,6 +84,66 @@ describe("Echo app shell", () => {
 
     expect(screen.getByRole("heading", { name: /design primitives for echo/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/preview record orb/i)).toBeInTheDocument();
+  });
+
+  it("runs an Audio Lab recording test with permission, stop, metadata, and playback diagnostics", async () => {
+    const recorder = fakeRecorder({
+      finish: vi.fn(async () => ({
+        blob: new Blob(["voice-diagnostic"], { type: "audio/webm;codecs=opus" }),
+        mimeType: "audio/webm;codecs=opus",
+        sizeBytes: 16,
+        durationMs: 10000,
+      })),
+    });
+    render(<App authGateway={signedInGateway()} recorderFactory={async () => recorder} />);
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /audio lab/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /audio lab/i }));
+    fireEvent.click(screen.getByRole("button", { name: /test 10s/i }));
+
+    await waitFor(() => expect(recorder.start).toHaveBeenCalledOnce());
+    expect(screen.getByText(/permission granted/i)).toBeInTheDocument();
+    expect(screen.getByText(/recording 10s test/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /stop diagnostic recording/i }));
+
+    await waitFor(() => expect(recorder.finish).toHaveBeenCalledOnce());
+    expect(screen.getAllByText("audio/webm;codecs=opus").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("16 bytes")).toBeInTheDocument();
+    expect(screen.getByText("10s")).toBeInTheDocument();
+    expect(screen.getAllByText(/local playback only/i).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("surfaces Audio Lab permission failures and supports canceling an active test", async () => {
+    const deniedRecorder = fakeRecorder({
+      start: vi.fn(async () => {
+        throw new Error("permission denied");
+      }),
+    });
+    const deniedApp = render(<App authGateway={signedInGateway()} recorderFactory={async () => deniedRecorder} />);
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /audio lab/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /audio lab/i }));
+    fireEvent.click(screen.getByRole("button", { name: /test 30s/i }));
+
+    expect(await screen.findByText(/permission denied or unavailable/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/permission denied/i).length).toBeGreaterThanOrEqual(1);
+
+    deniedApp.unmount();
+
+    const discard = vi.fn(async () => undefined);
+    const activeRecorder = fakeRecorder({ discard });
+    render(<App authGateway={signedInGateway()} recorderFactory={async () => activeRecorder} />);
+
+    await waitFor(() => expect(screen.getAllByRole("button", { name: /audio lab/i }).at(-1)).toBeInTheDocument());
+    fireEvent.click(screen.getAllByRole("button", { name: /audio lab/i }).at(-1)!);
+    fireEvent.click(screen.getAllByRole("button", { name: /test 60s/i }).at(-1)!);
+    await waitFor(() => expect(activeRecorder.start).toHaveBeenCalledOnce());
+
+    fireEvent.click(screen.getByRole("button", { name: /cancel diagnostic recording/i }));
+
+    await waitFor(() => expect(discard).toHaveBeenCalledOnce());
+    expect(screen.getByText(/recording canceled/i)).toBeInTheDocument();
   });
   it("keeps deferred features out of the Today screen", async () => {
     render(<App authGateway={signedInGateway()} />);
