@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Mic, Sparkles } from "lucide-react";
+import { createSupabaseAccountDataGateway, type AccountDataExport, type AccountDataGateway, type SupabaseAccountDataClient } from "./modules/account/accountData";
 import type { ReflectionEntry } from "./modules/entries/types";
 import { createSupabaseEntryHistoryGateway, type EntryHistoryGateway, type SupabaseEntryHistoryClient } from "./modules/entries/history";
 import { runEntryWorkflow } from "./modules/entryWorkflow/entryWorkflow";
@@ -15,7 +16,7 @@ import { getDailyPromptSet } from "./modules/prompts/prompts";
 import { BottomNav, BreathingOrb, EchoButton, PromptChip, ReflectionText, SectionLabel, SoftCard, Tag } from "./modules/designSystem/designSystem";
 import { linenAndSageTokens } from "./modules/designSystem/tokens";
 
-type Route = "onboarding" | "auth" | "today" | "recording" | "processing" | "result" | "history" | "audio-lab" | "design-system";
+type Route = "onboarding" | "auth" | "today" | "recording" | "processing" | "result" | "history" | "account" | "audio-lab" | "design-system";
 
 function todayIsoDate() {
   return new Date().toISOString().slice(0, 10);
@@ -39,6 +40,7 @@ function displayDate(value: string) {
 }
 
 type RecorderFactory = () => Promise<Recorder>;
+type ExportDataSink = (filename: string, data: AccountDataExport) => void;
 
 type AppProps = {
   authGateway?: AuthGateway;
@@ -46,9 +48,10 @@ type AppProps = {
   transcriptionProvider?: TranscriptionProvider;
   reflectionProvider?: ReflectionProvider;
   entryHistoryGateway?: EntryHistoryGateway;
+  accountDataGateway?: AccountDataGateway;
+  exportDataSink?: ExportDataSink;
 };
-
-export default function App({ authGateway: providedAuthGateway, recorderFactory = createDefaultBrowserRecorder, transcriptionProvider: providedTranscriptionProvider, reflectionProvider: providedReflectionProvider, entryHistoryGateway: providedEntryHistoryGateway }: AppProps = {}) {
+export default function App({ authGateway: providedAuthGateway, recorderFactory = createDefaultBrowserRecorder, transcriptionProvider: providedTranscriptionProvider, reflectionProvider: providedReflectionProvider, entryHistoryGateway: providedEntryHistoryGateway, accountDataGateway: providedAccountDataGateway, exportDataSink = downloadJsonExport }: AppProps = {}) {
   const [route, setRoute] = useState<Route>("onboarding");
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -71,6 +74,10 @@ export default function App({ authGateway: providedAuthGateway, recorderFactory 
   const entryHistoryGateway = useMemo(
     () => providedEntryHistoryGateway ?? (supabaseWorkflowClient ? createSupabaseEntryHistoryGateway(supabaseWorkflowClient as unknown as SupabaseEntryHistoryClient) : null),
     [providedEntryHistoryGateway, supabaseWorkflowClient],
+  );
+  const accountDataGateway = useMemo(
+    () => providedAccountDataGateway ?? (supabaseWorkflowClient ? createSupabaseAccountDataGateway(supabaseWorkflowClient as unknown as SupabaseAccountDataClient) : null),
+    [providedAccountDataGateway, supabaseWorkflowClient],
   );
   const authGateway = useMemo(() => providedAuthGateway ?? createConfiguredAuthGateway(), [providedAuthGateway]);
 
@@ -223,6 +230,7 @@ export default function App({ authGateway: providedAuthGateway, recorderFactory 
             onOpenHistory={() => setRoute("history")}
             onOpenAudioLab={() => setRoute("audio-lab")}
             onOpenDesignSystem={() => setRoute("design-system")}
+            onOpenAccount={() => setRoute("account")}
           />
         )}
         {route === "recording" && (
@@ -246,6 +254,26 @@ export default function App({ authGateway: providedAuthGateway, recorderFactory 
             }}
             onToday={() => setRoute("today")}
             onDelete={(entry) => void deleteEntry(entry.id)}
+            onAccount={() => setRoute("account")}
+          />
+        )}
+        {route === "account" && (
+          <AccountScreen
+            entriesCount={entries.length}
+            accountDataGateway={accountDataGateway}
+            userId={userId}
+            onExport={exportDataSink}
+            onToday={() => setRoute("today")}
+            onHistory={() => setRoute("history")}
+            onWiped={async () => {
+              await authGateway.signOut();
+              setEntries([]);
+              setActiveEntry(null);
+              setUserId(null);
+              setIsSignedIn(false);
+              setAuthMessage("Your Echo data was deleted from this MVP workspace. Supabase Auth account deletion needs a server-side admin function before launch.");
+              setRoute("auth");
+            }}
           />
         )}
         {route === "audio-lab" && <AudioLabScreen recorderFactory={recorderFactory} transcriptionProvider={audioLabTranscriptionProvider} promptText={selectedPrompt} onBack={() => setRoute("today")} />}
@@ -257,6 +285,15 @@ export default function App({ authGateway: providedAuthGateway, recorderFactory 
 
 
 
+function downloadJsonExport(filename: string, data: AccountDataExport) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 function nextUiFrame() {
   return new Promise<void>((resolve) => {
     window.setTimeout(resolve, 0);
@@ -391,6 +428,7 @@ function TodayScreen(props: {
   onOpenHistory: () => void;
   onOpenAudioLab: () => void;
   onOpenDesignSystem: () => void;
+  onOpenAccount: () => void;
 }) {
   const offline = typeof navigator !== "undefined" && "onLine" in navigator && !navigator.onLine;
   return (
@@ -421,7 +459,7 @@ function TodayScreen(props: {
         <button onClick={props.onOpenAudioLab}>Audio Lab</button>
         <button onClick={props.onOpenDesignSystem}>Design System</button>
       </div>
-      <BottomNav active="today" onToday={() => undefined} onHistory={props.onOpenHistory} />
+      <BottomNav active="today" onToday={() => undefined} onHistory={props.onOpenHistory} onAccount={props.onOpenAccount} />
     </main>
   );
 }
@@ -532,6 +570,85 @@ function ProcessingScreen({ message }: { message: string }) {
     </main>
   );
 }
+function AccountScreen({
+  entriesCount,
+  accountDataGateway,
+  userId,
+  onExport,
+  onToday,
+  onHistory,
+  onWiped,
+}: {
+  entriesCount: number;
+  accountDataGateway: AccountDataGateway | null;
+  userId: string | null;
+  onExport: ExportDataSink;
+  onToday: () => void;
+  onHistory: () => void;
+  onWiped: () => Promise<void>;
+}) {  const [message, setMessage] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  async function exportData() {
+    if (!accountDataGateway || !userId) {
+      setMessage("Account data export is available after Supabase sign-in is connected.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const data = await accountDataGateway.exportUserData(userId);
+      onExport(`echo-${userId}-export.json`, data);
+      setMessage("Export prepared. It includes transcripts and reflection metadata, not audio files.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not export your Echo data.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function wipeData() {
+    if (!confirmingDelete) {
+      setConfirmingDelete(true);
+      setMessage("This deletes your Echo reflection data from the MVP workspace. Tap confirm to continue.");
+      return;
+    }
+    if (!accountDataGateway || !userId) {
+      setMessage("Account data deletion is available after Supabase sign-in is connected.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await accountDataGateway.wipeUserData(userId);
+      await onWiped();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not delete your Echo data.");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <main className="screen account-screen">
+      <StatusBar />
+      <section className="account-head">
+        <p className="eyebrow">YOUR DATA</p>
+        <h1>Account</h1>
+        <p className="body-copy">{entriesCount} reflections kept. Echo does not include original audio in this MVP export.</p>
+      </section>
+      <section className="account-actions">
+        <EchoButton tone="sage" onClick={() => void exportData()} disabled={busy}>Export my data</EchoButton>
+        <EchoButton tone="muted" onClick={() => void wipeData()} disabled={busy}>
+          {confirmingDelete ? "Confirm delete data" : "Delete Echo data"}
+        </EchoButton>
+      </section>
+      <SoftCard className="account-note">
+        Supabase Auth account deletion needs a server-side admin function before launch. This MVP control wipes Echo reflection/profile data and signs you out.
+      </SoftCard>
+      <p className="quiet">{message ?? "Your export contains transcripts, Mirror Notes, tags, quotes, and provider metadata."}</p>
+      <BottomNav active="account" onToday={onToday} onHistory={onHistory} onAccount={() => undefined} />
+    </main>
+  );
+}
 
 function ResultScreen({ entry, onDone, onDelete }: { entry: ReflectionEntry; onDone: () => void; onDelete: () => void }) {
   const transcript = entry.transcript ?? "";
@@ -576,11 +693,13 @@ function HistoryScreen({
   onOpen,
   onToday,
   onDelete,
+  onAccount,
 }: {
   entries: ReflectionEntry[];
   onOpen: (entry: ReflectionEntry) => void;
   onToday: () => void;
   onDelete: (entry: ReflectionEntry) => void;
+  onAccount: () => void;
 }) {
   return (
     <main className="screen history-screen">
@@ -613,7 +732,7 @@ function HistoryScreen({
           );
         })}
       </section>
-      <BottomNav active="history" onToday={onToday} onHistory={() => undefined} />
+      <BottomNav active="history" onToday={onToday} onHistory={() => undefined} onAccount={onAccount} />
     </main>
   );
 }

@@ -1,13 +1,14 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+import type { AccountDataGateway } from "./modules/account/accountData";
 import type { AuthGateway } from "./modules/auth/auth";
 import type { EntryHistoryGateway } from "./modules/entries/history";
 import type { Recorder } from "./modules/recording/types";
 import type { ReflectionProvider } from "./modules/reflection/reflection";
 import type { TranscriptionProvider } from "./modules/transcription/transcription";
 
-function signedInGateway(): AuthGateway {
+function signedInGateway(overrides: Partial<AuthGateway> = {}): AuthGateway {
   return {
     configured: true,
     async getSession() {
@@ -16,9 +17,9 @@ function signedInGateway(): AuthGateway {
     async requestEmailOtp() {},
     async captureTimezone() {},
     async signOut() {},
+    ...overrides,
   };
 }
-
 function historyEntry(overrides: Partial<Awaited<ReturnType<EntryHistoryGateway["listEntries"]>>[number]> = {}) {
   return {
     id: "history-1",
@@ -52,6 +53,41 @@ function fakeHistoryGateway(entries = [historyEntry()]) {
     listEntries: vi.fn(async () => entries),
     deleteEntry: vi.fn(async () => undefined),
   } satisfies EntryHistoryGateway;
+}
+function fakeAccountDataGateway(overrides: Partial<AccountDataGateway> = {}) {
+  return {
+    exportUserData: vi.fn(async () => ({
+      exportedAt: "2026-06-26T02:00:00.000Z",
+      userId: "user-1",
+      entries: [
+        {
+          id: "history-1",
+          promptText: "A small good thing",
+          recordedAt: "2026-06-24T20:30:00.000Z",
+          recordedDate: "2026-06-24",
+          timezone: "Asia/Singapore",
+          status: "ready",
+          transcript: "I slowed down enough to actually hear my daughter today.",
+          mirrorNote: "You mentioned slowing down enough to hear your daughter.",
+          moodTags: ["tender"],
+          memoryQuote: "I slowed down enough to actually hear my daughter today.",
+          durationMs: 42000,
+          audioRetentionPolicy: "none",
+          audioMimeType: null,
+          audioSizeBytes: null,
+          audioDeletedAt: "2026-06-24T20:31:00.000Z",
+          transcriptionProvider: "gemini",
+          transcriptionModel: "gemini-2.5-flash",
+          reflectionProvider: "gemini",
+          reflectionModel: "gemini-2.5-flash",
+          createdAt: "2026-06-24T20:30:00.000Z",
+          updatedAt: "2026-06-24T20:31:00.000Z",
+        },
+      ],
+    })),
+    wipeUserData: vi.fn(async () => undefined),
+    ...overrides,
+  } satisfies AccountDataGateway;
 }
 function fakeTranscriptionProvider(overrides: Partial<TranscriptionProvider> = {}) {
   return {
@@ -225,6 +261,40 @@ describe("Echo app shell", () => {
     await waitFor(() => expect(entryHistoryGateway.deleteEntry).toHaveBeenCalledWith("user-1", "history-1"));
     expect(screen.queryByText(/I slowed down enough to actually hear my daughter today/i)).not.toBeInTheDocument();
     expect(screen.getByText(/0 kept/i)).toBeInTheDocument();
+  });
+  it("exports signed-in account data without audio blobs", async () => {
+    const accountDataGateway = fakeAccountDataGateway();
+    const exportSink = vi.fn();
+    render(<App authGateway={signedInGateway()} accountDataGateway={accountDataGateway} exportDataSink={exportSink} />);
+
+    await waitFor(() => expect(screen.getByLabelText(/start recording/i)).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /account/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /export my data/i }));
+
+    await waitFor(() => expect(accountDataGateway.exportUserData).toHaveBeenCalledWith("user-1"));
+    expect(exportSink).toHaveBeenCalledWith(
+      "echo-user-1-export.json",
+      expect.objectContaining({ userId: "user-1", entries: [expect.objectContaining({ audioRetentionPolicy: "none" })] }),
+    );
+    expect(JSON.stringify(exportSink.mock.calls[0][1])).not.toContain("audioStoragePath");
+  });
+
+  it("confirms data wipe, signs out, and clears local reflections", async () => {
+    const signOut = vi.fn(async () => undefined);
+    const accountDataGateway = fakeAccountDataGateway();
+    const entryHistoryGateway = fakeHistoryGateway();
+    render(<App authGateway={signedInGateway({ signOut })} entryHistoryGateway={entryHistoryGateway} accountDataGateway={accountDataGateway} />);
+
+    await waitFor(() => expect(entryHistoryGateway.listEntries).toHaveBeenCalledWith("user-1"));
+    fireEvent.click(screen.getByRole("button", { name: /account/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /^delete echo data$/i }));
+    expect(accountDataGateway.wipeUserData).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: /confirm delete data/i }));
+
+    await waitFor(() => expect(accountDataGateway.wipeUserData).toHaveBeenCalledWith("user-1"));
+    expect(signOut).toHaveBeenCalledOnce();
+    expect(await screen.findByRole("heading", { name: /let the audio go/i })).toBeInTheDocument();
   });
   it("renders the Afterglow result screen with MVP-only actions", async () => {
     const recorder = fakeRecorder();

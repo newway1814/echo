@@ -673,6 +673,28 @@ h1 {
   margin: 16px 0;
 }
 
+
+.account-screen h1 {
+  font-size: 34px;
+  margin-top: 18px;
+}
+
+.account-head .body-copy {
+  margin-top: 18px;
+}
+
+.account-actions {
+  display: grid;
+  gap: 12px;
+  margin: 42px 0 22px;
+}
+
+.account-note {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+  margin-bottom: 18px;
+}
 @media (max-width: 430px) {
   .app-canvas {
     padding: 0;

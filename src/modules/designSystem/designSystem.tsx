@@ -55,7 +55,7 @@ export function ReflectionText({ children, className = "" }: { children: ReactNo
   return <p className={`reflection-text ${className}`.trim()}>{children}</p>;
 }
 
-export function BottomNav({ active, onToday, onHistory }: { active: "today" | "history"; onToday: () => void; onHistory: () => void }) {
+export function BottomNav({ active, onToday, onHistory, onAccount }: { active: "today" | "history" | "account"; onToday: () => void; onHistory: () => void; onAccount: () => void }) {
   return (
     <nav className="bottom-nav" aria-label="Primary">
       <button className={active === "today" ? "active" : ""} onClick={onToday}>
@@ -66,9 +66,9 @@ export function BottomNav({ active, onToday, onHistory }: { active: "today" | "h
         <History size={16} />
         Reflections
       </button>
-      <button>
+      <button className={active === "account" ? "active" : ""} onClick={onAccount}>
         <UserRound size={16} />
-        You
+        Account
       </button>
     </nav>
   );
