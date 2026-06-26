@@ -122,4 +122,41 @@ describe("recording module", () => {
       code: "microphone_unavailable",
     });
   });
+
+  it("surfaces unsupported MIME recorder creation as a recoverable browser failure", async () => {
+    const stopTrack = vi.fn();
+    const recorder = createBrowserRecorder({
+      requestStream: async () => ({ getTracks: () => [{ stop: stopTrack }] }),
+      createMediaRecorder: (_stream, options) => {
+        expect(options.mimeType).toBeUndefined();
+        throw new Error("mime not supported");
+      },
+      chooseMimeType: () => undefined,
+    });
+
+    await expect(recorder.start()).rejects.toMatchObject({ code: "recorder_unavailable" });
+    expect(stopTrack).toHaveBeenCalledOnce();
+  });
+
+  it("cleans up tracks when recording is interrupted during finish", async () => {
+    const stopTrack = vi.fn();
+    const recorder = createBrowserRecorder({
+      requestStream: async () => ({ getTracks: () => [{ stop: stopTrack }] }),
+      createMediaRecorder: () => ({
+        mimeType: "audio/webm",
+        start: vi.fn(),
+        stop: vi.fn(),
+        requestStop: async () => {
+          throw new Error("interrupted");
+        },
+      }),
+      chooseMimeType: () => "audio/webm",
+    });
+
+    await recorder.start();
+
+    await expect(recorder.finish()).rejects.toMatchObject({ code: "recording_failed" });
+    expect(stopTrack).toHaveBeenCalledOnce();
+    await expect(recorder.finish()).rejects.toMatchObject({ code: "not_recording" });
+  });
 });

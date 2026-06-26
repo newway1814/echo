@@ -17,8 +17,14 @@ Echo is a mobile-first web app for voice-first self-reflection. The MVP tests on
 npm install
 npm run dev
 npm test
+npm run typecheck
+npm run lint
 npm run build
 ```
+
+## MVP Quality Gates
+
+Before sending Echo to testers, run the automated gates above and then complete `docs/quality/iphone-validation.md` on a real iPhone. Record real-device results in `docs/quality/iphone-results.md`; desktop automation cannot prove iOS Safari recording, PWA microphone behavior, MIME output, background handling, or cleanup under network interruption.
 
 ## Important Privacy Copy
 

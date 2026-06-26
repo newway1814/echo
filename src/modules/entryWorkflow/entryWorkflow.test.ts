@@ -113,6 +113,22 @@ describe("entry workflow", () => {
     ]);
   });
 
+  it("marks upload failure before transcription when temporary audio cannot be handed off", async () => {
+    const { ports, statuses, events } = createPorts({
+      uploadTemporaryAudio: async () => {
+        throw new Error("storage upload failed");
+      },
+    });
+
+    const result = await runEntryWorkflow(workflowInput(), ports);
+
+    expect(result.status).toBe("upload_failed");
+    expect(result.userMessage).toBe("storage upload failed");
+    expect(statuses).toEqual(["recorded_locally", "uploading_for_transcription"]);
+    expect(events).not.toContain("transcribe");
+    expect(events).not.toContain("deleteTemporaryAudio");
+    expect(events).toContain("event:upload_failed");
+  });
   it("distinguishes retryable transcription failures before deleting temporary audio", async () => {
     const { ports, statuses, events } = createPorts({
       transcribe: async () => {

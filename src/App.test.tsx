@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import type { AuthGateway } from "./modules/auth/auth";
@@ -149,6 +149,30 @@ describe("Echo app shell", () => {
     await waitFor(() => expect(recorder.finish).toHaveBeenCalledOnce());
     expect(await screen.findByText("MY WORDS")).toBeInTheDocument();
     expect(screen.queryByRole("audio")).not.toBeInTheDocument();
+  });
+  it("auto-finishes the recording screen at the 60 second cap", async () => {
+    const recorder = fakeRecorder();
+    render(<App authGateway={signedInGateway()} recorderFactory={async () => recorder} transcriptionProvider={fakeTranscriptionProvider()} />);
+
+    await waitFor(() => expect(screen.getByLabelText(/start recording/i)).toBeInTheDocument());
+
+    vi.useFakeTimers();
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText(/start recording/i));
+      await Promise.resolve();
+    });
+    expect(recorder.start).toHaveBeenCalledOnce();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60000);
+    });
+
+    expect(recorder.finish).toHaveBeenCalledOnce();
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+    });
+    vi.useRealTimers();
+    expect(await screen.findByText("MY WORDS")).toBeInTheDocument();
   });
 
 
