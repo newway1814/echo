@@ -67,7 +67,9 @@ create table public.temporary_audio_jobs (
   expires_at timestamptz not null,
   deleted_at timestamptz,
   attempts integer not null default 0,
-  last_error text,
+  last_error_code text,
+  last_error_message text,
+  last_error_metadata jsonb not null default '{}',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -108,9 +110,50 @@ create policy "entry events are owned by user" on public.entry_events
 
 create index entries_user_recorded_at_idx on public.entries (user_id, recorded_at desc) where deleted_at is null;
 create index temporary_audio_jobs_expiry_idx on public.temporary_audio_jobs (expires_at) where deleted_at is null;
+alter table public.entries
+  add constraint entries_audio_none_has_no_path
+  check (audio_retention_policy <> 'none' or audio_storage_path is null);
+
+alter table public.entries
+  add constraint entries_duration_ms_non_negative
+  check (duration_ms is null or duration_ms >= 0);
+
+alter table public.temporary_audio_jobs
+  add constraint temporary_audio_jobs_attempts_non_negative
+  check (attempts >= 0);
+
+alter table public.temporary_audio_jobs
+  add constraint temporary_audio_jobs_size_non_negative
+  check (size_bytes >= 0);
+
 create index entry_events_entry_created_idx on public.entry_events (entry_id, created_at asc);
 
--- Storage bucket setup note:
--- Create a private bucket named `temporary-audio` in Supabase Storage.
--- Objects should be stored under tmp-transcription/{user_id}/{entry_id}.* and deleted by the workflow after transcription.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'temporary-audio',
+  'temporary-audio',
+  false,
+  26214400,
+  array['audio/mp4', 'audio/webm', 'audio/ogg', 'audio/mpeg', 'audio/wav']
+)
+on conflict (id) do update set
+  public = false,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
+create policy "temporary audio objects are user scoped" on storage.objects
+  for all to authenticated
+  using (
+    bucket_id = 'temporary-audio'
+    and (storage.foldername(name))[1] = 'tmp-transcription'
+    and (storage.foldername(name))[2] = (select auth.uid())::text
+  )
+  with check (
+    bucket_id = 'temporary-audio'
+    and (storage.foldername(name))[1] = 'tmp-transcription'
+    and (storage.foldername(name))[2] = (select auth.uid())::text
+  );
+
+-- Temporary audio is private and must be deleted by the workflow after transcription.
+-- Store objects under tmp-transcription/{user_id}/{entry_id}.* so storage RLS can scope each path to its owner.
 -- Do not create public read policies for this bucket.
