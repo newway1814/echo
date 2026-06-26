@@ -81,7 +81,7 @@ export function createSupabaseEntryWorkflowPorts({
       const expiresAt = new Date(now().getTime() + 10 * 60 * 1000).toISOString();
 
       const upload = await client.storage.from("temporary-audio").upload(storagePath, input.audio, {
-        contentType: input.mimeType,
+        contentType: storageContentType(input.mimeType),
         upsert: false,
       });
       if (upload.error) throw new Error(upload.error.message);
@@ -182,6 +182,15 @@ export function createSupabaseEntryWorkflowPorts({
 
 function temporaryAudioPath(userId: string, entryId: string, mimeType: string) {
   return `tmp-transcription/${userId}/${entryId}.${extensionForMimeType(mimeType)}`;
+}
+
+function storageContentType(mimeType: string) {
+  if (mimeType.includes("mp4")) return "audio/mp4";
+  if (mimeType.includes("ogg")) return "audio/ogg";
+  if (mimeType.includes("mpeg")) return "audio/mpeg";
+  if (mimeType.includes("wav")) return "audio/wav";
+  if (mimeType.includes("webm")) return "audio/webm";
+  return "application/octet-stream";
 }
 
 function extensionForMimeType(mimeType: string) {

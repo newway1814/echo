@@ -58,8 +58,9 @@ export default function App({ authGateway: providedAuthGateway, recorderFactory 
   const [authMessage, setAuthMessage] = useState<string | null>(null);
   const promptSet = useMemo(() => getDailyPromptSet(), []);
   const [selectedPrompt, setSelectedPrompt] = useState(promptSet.dailyPrompt);
-  const [entries, setEntries] = useState<ReflectionEntry[]>(() => [demoEntry]);
-  const [activeEntry, setActiveEntry] = useState<ReflectionEntry | null>(demoEntry);
+  const [entries, setEntries] = useState<ReflectionEntry[]>([]);
+  const [activeEntry, setActiveEntry] = useState<ReflectionEntry | null>(null);
+  const [processingTitle, setProcessingTitle] = useState("Saving your reflection...");
   const [processingMessage, setProcessingMessage] = useState("Echo is securing this reflection.");
   const transcriptionProvider = useMemo(() => providedTranscriptionProvider ?? createConfiguredTranscriptionProvider(), [providedTranscriptionProvider]);
   const audioLabTranscriptionProvider = useMemo(() => providedTranscriptionProvider ?? createConfiguredTranscriptionProvider(), [providedTranscriptionProvider]);
@@ -123,6 +124,7 @@ export default function App({ authGateway: providedAuthGateway, recorderFactory 
   async function completeReflection(recording: RecordedAudio) {
     const recordedAt = new Date().toISOString();
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    setProcessingTitle("Saving your reflection...");
     setProcessingMessage("Echo is securing this reflection.");
     setRoute("processing");
     await nextUiFrame();
@@ -145,6 +147,7 @@ export default function App({ authGateway: providedAuthGateway, recorderFactory 
             transcriptionProvider,
             reflectionProvider,
             onHandoffComplete: () => {
+              setProcessingTitle("Your reflection is saved.");
               setProcessingMessage("Your reflection is safe to close. Echo is listening back now.");
             },
           })
@@ -152,12 +155,14 @@ export default function App({ authGateway: providedAuthGateway, recorderFactory 
             transcriptionProvider,
             reflectionProvider,
             onHandoffComplete: () => {
+              setProcessingTitle("Your reflection is saved.");
               setProcessingMessage("Your reflection is safe to close. Echo is listening back now.");
             },
           }),
     );
 
     if (workflowResult.status !== "ready") {
+      setProcessingTitle("Try that reflection again.");
       setProcessingMessage(workflowResult.userMessage ?? "Echo could not finish this reflection.");
       return;
     }
@@ -230,6 +235,7 @@ export default function App({ authGateway: providedAuthGateway, recorderFactory 
             onOpenHistory={() => setRoute("history")}
             onOpenAudioLab={() => setRoute("audio-lab")}
             onOpenDesignSystem={() => setRoute("design-system")}
+            latestEntry={entries[0] ?? null}
             onOpenAccount={() => setRoute("account")}
           />
         )}
@@ -241,7 +247,7 @@ export default function App({ authGateway: providedAuthGateway, recorderFactory 
             onFinish={(recording) => void completeReflection(recording)}
           />
         )}
-        {route === "processing" && <ProcessingScreen message={processingMessage} />}
+        {route === "processing" && <ProcessingScreen title={processingTitle} message={processingMessage} />}
         {route === "result" && activeEntry && (
           <ResultScreen entry={activeEntry} onDone={() => setRoute("today")} onDelete={() => void deleteEntry(activeEntry.id)} />
         )}
@@ -423,6 +429,7 @@ function TodayScreen(props: {
   promptSet: ReturnType<typeof getDailyPromptSet>;
   isSignedIn: boolean;
   selectedPrompt: string;
+  latestEntry: ReflectionEntry | null;
   onSelectPrompt: (prompt: string) => void;
   onRecord: () => void;
   onOpenHistory: () => void;
@@ -451,10 +458,12 @@ function TodayScreen(props: {
         </button>
         <p>{offline ? "Echo needs a connection to transcribe without keeping your audio." : "Tap to speak - about a minute"}</p>
       </section>
-      <button className="yesterday-card" onClick={props.onOpenHistory}>
-        <span>YESTERDAY YOU SAID</span>
-        <q>I slowed down enough to actually hear my daughter today.</q>
-      </button>
+      {props.latestEntry && (
+        <button className="yesterday-card" onClick={props.onOpenHistory}>
+          <span>LAST REFLECTION</span>
+          <q>{props.latestEntry.memoryQuote ?? props.latestEntry.transcript}</q>
+        </button>
+      )}
       <div className="dev-links">
         <button onClick={props.onOpenAudioLab}>Audio Lab</button>
         <button onClick={props.onOpenDesignSystem}>Design System</button>
@@ -561,11 +570,11 @@ function RecordingScreen({
   );
 }
 
-function ProcessingScreen({ message }: { message: string }) {
+function ProcessingScreen({ title, message }: { title: string; message: string }) {
   return (
     <main className="screen processing-screen">
       <div className="spinner-orb" />
-      <h1>Your reflection is saved.</h1>
+      <h1>{title}</h1>
       <p className="body-copy">{message}</p>
     </main>
   );
@@ -950,28 +959,3 @@ function DesignSystemPreview({ onBack }: { onBack: () => void }) {
     </main>
   );
 }
-const demoEntry: ReflectionEntry = {
-  id: "demo-1",
-  userId: "demo-user",
-  promptText: "What drained you today?",
-  recordedAt: "2026-06-25T20:30:00.000Z",
-  recordedDate: "2026-06-25",
-  timezone: "Asia/Singapore",
-  status: "ready",
-  transcript:
-    "Work pulled at me all day. By the time I got home I had almost nothing left for the people I care about.",
-  mirrorNote:
-    "You mentioned having almost nothing left for the people you care about. One thing that stands out is how clearly you noticed the pattern.",
-  moodTags: ["depleted", "boundaries"],
-  memoryQuote: "By the time I got home I had almost nothing left for the people I care about.",
-  durationMs: 54000,
-  audioRetentionPolicy: "none",
-  audioStoragePath: null,
-  audioMimeType: null,
-  audioSizeBytes: null,
-  audioDeletedAt: "2026-06-25T20:31:00.000Z",
-  transcriptionProvider: "demo",
-  transcriptionModel: "demo-transcriber",
-  reflectionProvider: "demo",
-  reflectionModel: "demo-reflector",
-};

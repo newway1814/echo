@@ -37,7 +37,7 @@ export async function runEntryWorkflow(
       : "transcription_failed_retryable";
     const message = expired
       ? "Echo couldn't finish this one, and your original audio was not kept. You'll need to record it again."
-      : "Echo couldn't finish listening back. Try again?";
+      : transcriptionFailureMessage(error);
     return fail(entry.id, status, message, ports);
   }
 
@@ -92,6 +92,13 @@ async function fail(
     entryId,
     userMessage: message,
   };
+}
+
+function transcriptionFailureMessage(error: unknown) {
+  if (error instanceof Error && "code" in error && error.code === "empty_transcript") {
+    return "Echo didn't catch that clearly. Try recording again with the microphone close by.";
+  }
+  return "Echo couldn't finish listening back. Try again?";
 }
 
 function isTemporaryAudioExpired(error: unknown) {

@@ -52,6 +52,54 @@ function createFakeClient() {
 }
 
 describe("Supabase entry workflow ports", () => {
+  it("uploads codec MIME recordings with a Supabase bucket-safe content type", async () => {
+    const codecAudio = new Blob(["voice"], { type: "audio/webm;codecs=opus" });
+    const fake = createFakeClient();
+    const ports = createSupabaseEntryWorkflowPorts({
+      client: fake.client,
+      transcriptionProvider: { transcribe: vi.fn() },
+      reflectionProvider: { reflect: vi.fn() },
+      now: () => new Date("2026-06-26T01:00:00.000Z"),
+    });
+
+    const entry = await ports.createEntry({
+      userId: "user-1",
+      promptText: "What changed today?",
+      timezone: "Asia/Singapore",
+      recordedAt: "2026-06-26T01:00:00.000Z",
+      audio: codecAudio,
+      mimeType: "audio/webm;codecs=opus",
+      durationMs: 30000,
+    });
+    await ports.uploadTemporaryAudio(entry.id, {
+      userId: "user-1",
+      promptText: "What changed today?",
+      timezone: "Asia/Singapore",
+      recordedAt: "2026-06-26T01:00:00.000Z",
+      audio: codecAudio,
+      mimeType: "audio/webm;codecs=opus",
+      durationMs: 30000,
+    });
+
+    expect(fake.uploads).toContainEqual(
+      expect.objectContaining({
+        path: "tmp-transcription/user-1/entry-1.webm",
+        options: { contentType: "audio/webm", upsert: false },
+      }),
+    );
+    expect(fake.updates).toContainEqual(
+      expect.objectContaining({
+        table: "entries",
+        value: expect.objectContaining({ audio_mime_type: "audio/webm;codecs=opus" }),
+      }),
+    );
+    expect(fake.inserts).toContainEqual(
+      expect.objectContaining({
+        table: "temporary_audio_jobs",
+        value: expect.objectContaining({ mime_type: "audio/webm;codecs=opus" }),
+      }),
+    );
+  });
   it("creates owned entries and uploads temporary audio into the private user-scoped path", async () => {
     const fake = createFakeClient();
     const ports = createSupabaseEntryWorkflowPorts({

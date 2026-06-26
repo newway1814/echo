@@ -6,7 +6,7 @@ import type { AuthGateway } from "./modules/auth/auth";
 import type { EntryHistoryGateway } from "./modules/entries/history";
 import type { Recorder } from "./modules/recording/types";
 import type { ReflectionProvider } from "./modules/reflection/reflection";
-import type { TranscriptionProvider } from "./modules/transcription/transcription";
+import { TranscriptionError, type TranscriptionProvider } from "./modules/transcription/transcription";
 
 function signedInGateway(overrides: Partial<AuthGateway> = {}): AuthGateway {
   return {
@@ -230,6 +230,24 @@ describe("Echo app shell", () => {
     expect(await screen.findByText(/Your reflection is safe to close/i)).toBeInTheDocument();
     expect(transcriptionProvider.transcribe).toHaveBeenCalledOnce();
   });
+  it("shows a clear retry state when transcription cannot understand the recording", async () => {
+    const recorder = fakeRecorder();
+    const transcriptionProvider = fakeTranscriptionProvider({
+      transcribe: vi.fn(async () => {
+        throw new TranscriptionError("empty_transcript", "Gemini did not return transcript text.", 502);
+      }),
+    });
+    render(<App authGateway={signedInGateway()} recorderFactory={async () => recorder} transcriptionProvider={transcriptionProvider} />);
+
+    await waitFor(() => expect(screen.getByLabelText(/start recording/i)).toBeInTheDocument());
+    fireEvent.click(screen.getByLabelText(/start recording/i));
+    await waitFor(() => expect(recorder.start).toHaveBeenCalledOnce());
+    fireEvent.click(await screen.findByLabelText(/finish recording/i));
+
+    expect(await screen.findByRole("heading", { name: /try that reflection again/i })).toBeInTheDocument();
+    expect(screen.getByText(/Echo didn't catch that clearly/i)).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /your reflection is saved/i })).not.toBeInTheDocument();
+  });
 
 
   it("loads signed-in reflection history and opens a past Afterglow detail", async () => {
@@ -248,6 +266,15 @@ describe("Echo app shell", () => {
 
     expect(await screen.findByText("MY WORDS")).toBeInTheDocument();
     expect(screen.getByText(/You mentioned slowing down enough/i)).toBeInTheDocument();
+  });
+  it("does not show demo yesterday content for signed-in users with empty history", async () => {
+    const entryHistoryGateway = fakeHistoryGateway([]);
+    render(<App authGateway={signedInGateway()} entryHistoryGateway={entryHistoryGateway} />);
+
+    await waitFor(() => expect(entryHistoryGateway.listEntries).toHaveBeenCalledWith("user-1"));
+
+    expect(screen.queryByText(/YESTERDAY YOU SAID/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/I slowed down enough to actually hear my daughter today/i)).not.toBeInTheDocument();
   });
 
   it("soft-deletes a history reflection and removes it from normal history", async () => {
@@ -362,7 +389,7 @@ describe("Echo app shell", () => {
 
     await waitFor(() => expect(recorder.finish).toHaveBeenCalledOnce());
     expect(screen.getAllByText("audio/webm;codecs=opus").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("16 bytes")).toBeInTheDocument();
+    expect(await screen.findByText("16 bytes")).toBeInTheDocument();
     expect(screen.getByText("10s")).toBeInTheDocument();
     expect(screen.getAllByText(/local playback only/i).length).toBeGreaterThanOrEqual(1);
   });
