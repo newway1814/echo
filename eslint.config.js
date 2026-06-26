@@ -33,6 +33,7 @@ export default [
         btoa: "readonly",
         crypto: "readonly",
         URL: "readonly",
+        Location: "readonly",
         console: "readonly",
         setInterval: "readonly",
         clearInterval: "readonly",
@@ -52,4 +53,5 @@ export default [
     },
   },
 ];
+
 

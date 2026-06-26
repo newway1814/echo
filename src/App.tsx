@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { History, Home, Mic, Sparkles, UserRound } from "lucide-react";
 import type { ReflectionEntry } from "./modules/entries/types";
+import { createConfiguredAuthGateway } from "./modules/auth/supabaseClient";
+import { getAuthRedirectUrl } from "./modules/auth/auth";
 import { createDefaultBrowserRecorder, chooseRecordingMimeType, preferredAudioMimeTypes } from "./modules/recording/recording";
 import type { RecordedAudio, Recorder } from "./modules/recording/types";
 import { DemoReflectionProvider } from "./modules/reflection/reflection";
@@ -27,14 +29,37 @@ function displayDate(value: string) {
 }
 
 export default function App() {
-  const [route, setRoute] = useState<Route>("today");
-  const [isSignedIn, setIsSignedIn] = useState(true);
+  const [route, setRoute] = useState<Route>("onboarding");
+  const [isSignedIn, setIsSignedIn] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [selectedPrompt, setSelectedPrompt] = useState(prompts[0]);
   const [entries, setEntries] = useState<ReflectionEntry[]>(() => [demoEntry]);
   const [activeEntry, setActiveEntry] = useState<ReflectionEntry | null>(demoEntry);
   const [processingMessage, setProcessingMessage] = useState("Echo is securing this reflection.");
   const transcriptionProvider = useMemo(() => new DemoTranscriptionProvider(), []);
   const reflectionProvider = useMemo(() => new DemoReflectionProvider(), []);
+  const authGateway = useMemo(() => createConfiguredAuthGateway(), []);
+
+  useEffect(() => {
+    let mounted = true;
+    async function restoreSession() {
+      try {
+        const session = await authGateway.getSession();
+        if (!mounted || !session) return;
+        setUserId(session.userId);
+        setIsSignedIn(true);
+        await authGateway.captureTimezone(session.userId, Intl.DateTimeFormat().resolvedOptions().timeZone);
+        if (mounted) setRoute("today");
+      } catch (error) {
+        if (mounted) setAuthMessage(error instanceof Error ? error.message : "Could not restore your session.");
+      }
+    }
+    void restoreSession();
+    return () => {
+      mounted = false;
+    };
+  }, [authGateway]);
 
   async function completeReflection(recording: RecordedAudio) {
     setProcessingMessage("Echo is listening back and gathering its thoughts. You can close this while we keep going.");
@@ -51,7 +76,7 @@ export default function App() {
     });
     const entry: ReflectionEntry = {
       id: crypto.randomUUID?.() ?? String(Date.now()),
-      userId: "demo-user",
+      userId: userId ?? "demo-user",
       promptText: selectedPrompt,
       recordedAt: new Date().toISOString(),
       recordedDate: todayIsoDate(),
@@ -91,9 +116,16 @@ export default function App() {
         {route === "onboarding" && <OnboardingScreen onBegin={() => setRoute("auth")} />}
         {route === "auth" && (
           <AuthScreen
-            onContinue={() => {
-              setIsSignedIn(true);
-              setRoute("today");
+            configured={authGateway.configured}
+            message={authMessage}
+            onRequestLink={async (email) => {
+              setAuthMessage(null);
+              try {
+                await authGateway.requestEmailOtp(email, getAuthRedirectUrl());
+                setAuthMessage("Check your email for the Echo sign-in link.");
+              } catch (error) {
+                setAuthMessage(error instanceof Error ? error.message : "Could not send sign-in link.");
+              }
             }}
           />
         )}
@@ -176,7 +208,28 @@ function OnboardingScreen({ onBegin }: { onBegin: () => void }) {
   );
 }
 
-function AuthScreen({ onContinue }: { onContinue: () => void }) {
+function AuthScreen({
+  configured,
+  message,
+  onRequestLink,
+}: {
+  configured: boolean;
+  message: string | null;
+  onRequestLink: (email: string) => Promise<void>;
+}) {
+  const [email, setEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  async function submit() {
+    if (!email || submitting || !configured) return;
+    setSubmitting(true);
+    try {
+      await onRequestLink(email);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <main className="screen auth-screen">
       <p className="eyebrow">PRIVATE BY DESIGN</p>
@@ -187,12 +240,23 @@ function AuthScreen({ onContinue }: { onContinue: () => void }) {
       </p>
       <label className="input-label">
         Email
-        <input type="email" placeholder="you@example.com" />
+        <input
+          type="email"
+          placeholder="you@example.com"
+          value={email}
+          disabled={!configured || submitting}
+          onChange={(event) => setEmail(event.target.value)}
+        />
       </label>
-      <button className="primary sage" onClick={onContinue}>
-        Continue
+      <button className="primary sage" onClick={() => void submit()} disabled={!configured || submitting || !email}>
+        {submitting ? "Sending..." : "Email me a sign-in link"}
       </button>
-      <p className="quiet">Magic link or OTP sign-in for the MVP.</p>
+      <p className="quiet">
+        {message ??
+          (configured
+            ? "Magic link or OTP sign-in for the MVP."
+            : "Supabase auth is not configured yet. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to enable tester sign-in.")}
+      </p>
     </main>
   );
 }
@@ -496,4 +560,7 @@ const demoEntry: ReflectionEntry = {
   reflectionProvider: "demo",
   reflectionModel: "demo-reflector",
 };
+
+
+
 
